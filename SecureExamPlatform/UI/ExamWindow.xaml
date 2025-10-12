@@ -1,87 +1,54 @@
-﻿<Window x:Class="SecureExamPlatform.UI.ExamWindow"
+<Window x:Class="SecureExamPlatform.UI.ExamWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d"
-        Title="Secure Exam Platform"
-        WindowStyle="None"
+        Title="Secure Exam Platform" 
+        WindowStyle="None" 
         WindowState="Maximized"
         ResizeMode="NoResize"
         Topmost="True"
-        Background="#1a1a1a"
-        AllowsTransparency="False"
-        ShowInTaskbar="False">
+        Background="White">
 
     <Grid>
-        <!-- Main Layout -->
         <Grid.RowDefinitions>
-            <RowDefinition Height="80"/>
+            <RowDefinition Height="60"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="100"/>
+            <RowDefinition Height="80"/>
         </Grid.RowDefinitions>
 
-        <!-- Header Section -->
-        <Border Grid.Row="0" Background="#2c2c2c" BorderBrush="#444" BorderThickness="0,0,0,2">
-            <Grid Margin="20,10">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2196F3">
+            <Grid Margin="20,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Exam Title and Student Info -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding ExamTitle}" 
-                               FontSize="24" 
-                               FontWeight="Bold" 
+                    <TextBlock Text="{Binding ExamTitle}" FontSize="16" FontWeight="SemiBold" 
                                Foreground="White"/>
-                    <TextBlock FontSize="14" Foreground="#ccc" Margin="0,5,0,0">
-                        <Run Text="Student ID: "/>
-                        <Run Text="{Binding StudentId}" FontWeight="SemiBold"/>
-                        <Run Text="  |  "/>
-                        <Run Text="{Binding QuestionProgress}"/>
-                    </TextBlock>
+                    <TextBlock Text="{Binding StudentId, StringFormat='Student: {0}'}" 
+                               FontSize="12" Foreground="#BBDEFB"/>
                 </StackPanel>
 
-                <!-- Timer Display -->
-                <Border Grid.Column="1" 
-                        Background="#3a3a3a" 
-                        CornerRadius="5" 
-                        Padding="15,8"
-                        Margin="20,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⏱ Time Remaining: " 
-                                   FontSize="16" 
-                                   Foreground="#ffc107"
-                                   VerticalAlignment="Center"/>
-                        <TextBlock Name="TimerDisplay"
-                                   Text="{Binding RemainingTimeDisplay}" 
-                                   FontSize="20" 
-                                   FontWeight="Bold"
-                                   Foreground="#ffc107"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
+                <!-- Progress Info -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding QuestionProgress}" FontSize="14" 
+                               Foreground="White" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding RemainingTimeDisplay}" FontSize="12" 
+                               Foreground="#FFEB3B" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                </StackPanel>
 
-                <!-- Security Status Indicator -->
-                <Border Grid.Column="2" 
-                        Background="#2e7d32" 
-                        CornerRadius="5" 
-                        Padding="10,5">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="🔒" FontSize="16" Foreground="White" Margin="0,0,5,0"/>
-                        <TextBlock Text="SECURED" 
-                                   FontSize="12" 
-                                   FontWeight="Bold"
-                                   Foreground="White"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
+                <!-- Security Status -->
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock Text="🔒 SECURE SESSION" FontSize="12" Foreground="#4CAF50" FontWeight="SemiBold"/>
+                    <TextBlock Text="Monitoring Active" FontSize="10" Foreground="#BBDEFB"/>
+                </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Main Content Area -->
+        <!-- Main Content -->
         <Grid Grid.Row="1" Margin="40,20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="200"/>
@@ -89,237 +56,129 @@
             </Grid.ColumnDefinitions>
 
             <!-- Question Navigation Panel -->
-            <Border Grid.Column="0" 
-                    Background="#2c2c2c" 
-                    CornerRadius="10"
-                    Margin="0,0,20,0"
-                    Padding="15">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Border Grid.Column="0" Background="#F8F9FA" BorderBrush="#E9ECEF" 
+                    BorderThickness="1" CornerRadius="8" Margin="0,0,20,0">
+                <StackPanel Margin="15">
+                    <TextBlock Text="Questions" FontSize="14" FontWeight="SemiBold" 
+                               Foreground="#495057" Margin="0,0,0,15"/>
+                    
+                    <ItemsControl Name="QuestionNavigationList" ItemsSource="{Binding Questions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Number}" 
+                                        Width="30" Height="30" 
+                                        Margin="2"
+                                        Background="#E9ECEF" 
+                                        BorderBrush="#CED4DA"
+                                        BorderThickness="1"
+                                        Click="QuestionNavButton_Click"
+                                        Tag="{Binding Id}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+
+                    <TextBlock Text="Legend:" FontSize="12" FontWeight="SemiBold" 
+                               Margin="0,20,0,10" Foreground="#6C757D"/>
                     <StackPanel>
-                        <TextBlock Text="Questions" 
-                                   FontSize="18" 
-                                   FontWeight="Bold"
-                                   Foreground="White"
-                                   Margin="0,0,0,15"/>
-
-                        <!-- Question buttons will be dynamically added here -->
-                        <ItemsControl Name="QuestionList" ItemsSource="{Binding Questions}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Tag="{Binding Id}"
-                                            Click="QuestionButton_Click"
-                                            Margin="0,5"
-                                            Height="40"
-                                            Background="{Binding StatusColor}"
-                                            BorderBrush="#555"
-                                            Foreground="White">
-                                        <TextBlock>
-                                            <Run Text="Q"/>
-                                            <Run Text="{Binding Number}"/>
-                                            <Run Text=" "/>
-                                            <Run Text="{Binding StatusIcon}"/>
-                                        </TextBlock>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </ScrollViewer>
-            </Border>
-
-            <!-- Question Content Area -->
-            <Border Grid.Column="1" 
-                    Background="#2c2c2c" 
-                    CornerRadius="10"
-                    Padding="30">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Question Header -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,20">
-                        <TextBlock FontSize="20" 
-                                   FontWeight="Bold"
-                                   Foreground="White">
-                            <Run Text="Question "/>
-                            <Run Text="{Binding CurrentQuestionNumber}"/>
-                        </TextBlock>
-                        <Separator Margin="0,10" Background="#555"/>
-                    </StackPanel>
-
-                    <!-- Question Content -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <StackPanel>
-                            <!-- Question Text -->
-                            <TextBlock Text="{Binding CurrentQuestionText}"
-                                       FontSize="16"
-                                       Foreground="#f0f0f0"
-                                       TextWrapping="Wrap"
-                                       Margin="0,0,0,20"/>
-
-                            <!-- Answer Area -->
-                            <Border Background="#1a1a1a" 
-                                    CornerRadius="5"
-                                    Padding="15">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0"
-                                               Text="Your Answer:"
-                                               FontSize="14"
-                                               FontWeight="Bold"
-                                               Foreground="#aaa"
-                                               Margin="0,0,0,10"/>
-
-                                    <TextBox Name="AnswerTextBox"
-                                             Grid.Row="1"
-                                             MinHeight="200"
-                                             AcceptsReturn="True"
-                                             TextWrapping="Wrap"
-                                             VerticalScrollBarVisibility="Auto"
-                                             Background="#0a0a0a"
-                                             Foreground="White"
-                                             BorderBrush="#444"
-                                             Padding="10"
-                                             FontSize="14"
-                                             SpellCheck.IsEnabled="True"
-                                             TextChanged="AnswerTextBox_TextChanged"/>
-                                </Grid>
-                            </Border>
-
-                            <!-- Auto-save indicator -->
-                            <TextBlock Name="AutoSaveIndicator"
-                                       Text="✓ Auto-saved"
-                                       FontSize="12"
-                                       Foreground="#4caf50"
-                                       Margin="0,10,0,0"
-                                       Visibility="Collapsed"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Rectangle Width="12" Height="12" Fill="#E9ECEF" Margin="0,0,8,0"/>
+                            <TextBlock Text="Not answered" FontSize="10" Foreground="#6C757D"/>
                         </StackPanel>
-                    </ScrollViewer>
-                </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Rectangle Width="12" Height="12" Fill="#28A745" Margin="0,0,8,0"/>
+                            <TextBlock Text="Answered" FontSize="10" Foreground="#6C757D"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Rectangle Width="12" Height="12" Fill="#2196F3" Margin="0,0,8,0"/>
+                            <TextBlock Text="Current" FontSize="10" Foreground="#6C757D"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
             </Border>
+
+            <!-- Question Content -->
+            <StackPanel Grid.Column="1">
+                <!-- Question Text -->
+                <TextBlock Name="QuestionNumberText" 
+                           Text="{Binding CurrentQuestionNumber, StringFormat='Question {0}'}" 
+                           FontSize="18" FontWeight="SemiBold" 
+                           Foreground="#333" Margin="0,0,0,10"/>
+                
+                <Border Background="#F8F9FA" BorderBrush="#E9ECEF" BorderThickness="1" 
+                        CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                    <TextBlock Name="QuestionText" 
+                               Text="{Binding CurrentQuestionText}" 
+                               FontSize="14" 
+                               TextWrapping="Wrap" 
+                               Foreground="#495057"
+                               LineHeight="22"/>
+                </Border>
+
+                <!-- Answer Area -->
+                <TextBlock Text="Your Answer:" FontSize="14" FontWeight="SemiBold" 
+                           Foreground="#495057" Margin="0,0,0,10"/>
+                
+                <Border BorderBrush="#CED4DA" BorderThickness="2" CornerRadius="8">
+                    <TextBox Name="AnswerTextBox" 
+                             MinHeight="200" 
+                             TextWrapping="Wrap" 
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             Padding="15"
+                             FontSize="14"
+                             BorderThickness="0"
+                             Background="White"/>
+                </Border>
+            </StackPanel>
         </Grid>
 
-        <!-- Bottom Navigation Bar -->
-        <Border Grid.Row="2" Background="#2c2c2c" BorderBrush="#444" BorderThickness="0,2,0,0">
-            <Grid Margin="40,20">
+        <!-- Footer with Navigation and Submit -->
+        <Border Grid.Row="2" Background="#F8F9FA" BorderBrush="#E9ECEF" BorderThickness="0,1,0,0">
+            <Grid Margin="40,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Navigation Buttons -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Name="PreviousButton"
-                            Content="← Previous"
-                            Width="120"
-                            Height="40"
-                            Margin="5"
-                            Background="#444"
-                            Foreground="White"
-                            BorderBrush="#666"
-                            FontSize="14"
-                            Click="PreviousButton_Click"/>
-
-                    <Button Name="NextButton"
-                            Content="Next →"
-                            Width="120"
-                            Height="40"
-                            Margin="5"
-                            Background="#444"
-                            Foreground="White"
-                            BorderBrush="#666"
-                            FontSize="14"
-                            Click="NextButton_Click"/>
-
-                    <Button Name="FlagButton"
-                            Content="🚩 Flag Question"
-                            Width="140"
-                            Height="40"
-                            Margin="5"
-                            Background="#5a5a5a"
-                            Foreground="White"
-                            BorderBrush="#666"
-                            FontSize="14"
-                            Click="FlagButton_Click"/>
-                </StackPanel>
+                <!-- Previous Button -->
+                <Button Grid.Column="0" Name="PreviousButton" 
+                        Content="← Previous" 
+                        Background="#6C757D" 
+                        Foreground="White"
+                        BorderThickness="0"
+                        Padding="20,10"
+                        FontSize="14"
+                        Click="PreviousButton_Click"/>
 
                 <!-- Submit Button -->
-                <Button Name="SubmitButton"
-                        Grid.Column="2"
-                        Content="Submit Exam"
-                        Width="150"
-                        Height="45"
-                        HorizontalAlignment="Right"
-                        Background="#f44336"
+                <Button Grid.Column="2" Name="SubmitButton" 
+                        Content="Submit Exam" 
+                        Background="#DC3545" 
                         Foreground="White"
-                        BorderBrush="#d32f2f"
-                        FontSize="16"
-                        FontWeight="Bold"
-                        Click="SubmitButton_Click">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="2"
-                                                CornerRadius="5">
-                                            <ContentPresenter HorizontalAlignment="Center"
-                                                              VerticalAlignment="Center"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </Button.Style>
-                </Button>
-            </Grid>
-        </Border>
+                        BorderThickness="0"
+                        Padding="20,10"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Click="SubmitButton_Click"
+                        Margin="10,0,0,0"/>
 
-        <!-- Warning Overlay (Hidden by default) -->
-        <Border Name="WarningOverlay"
-                Grid.RowSpan="3"
-                Background="#CC000000"
-                Visibility="Collapsed">
-            <Border Background="#f44336"
-                    CornerRadius="10"
-                    Width="500"
-                    Height="200"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center">
-                <StackPanel HorizontalAlignment="Center" 
-                            VerticalAlignment="Center"
-                            Margin="20">
-                    <TextBlock Text="⚠ WARNING"
-                               FontSize="28"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,10"/>
-                    <TextBlock Name="WarningMessage"
-                               Text="Unauthorized action detected!"
-                               FontSize="16"
-                               Foreground="White"
-                               TextWrapping="Wrap"
-                               TextAlignment="Center"
-                               Margin="0,0,0,20"/>
-                    <Button Content="I Understand"
-                            Width="150"
-                            Height="40"
-                            Background="White"
-                            Foreground="#f44336"
-                            FontWeight="Bold"
-                            Click="DismissWarning_Click"/>
-                </StackPanel>
-            </Border>
+                <!-- Next Button -->
+                <Button Grid.Column="2" Name="NextButton" 
+                        Content="Next →" 
+                        Background="#28A745" 
+                        Foreground="White"
+                        BorderThickness="0"
+                        Padding="20,10"
+                        FontSize="14"
+                        Click="NextButton_Click"
+                        Margin="10,0,140,0"/>
+            </Grid>
         </Border>
     </Grid>
 </Window>
