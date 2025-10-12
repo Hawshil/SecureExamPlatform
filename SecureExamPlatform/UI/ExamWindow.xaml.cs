@@ -1,10 +1,12 @@
-﻿using SecureExamPlatform.Core;
+using SecureExamPlatform.Core;
 using SecureExamPlatform.Models;
 using SecureExamPlatform.Security;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -36,6 +38,15 @@ namespace SecureExamPlatform.UI
         private readonly DispatcherTimer _autoSaveTimer;
         private TimeSpan _remainingTime;
 
+        // UI Properties
+        private string _studentId;
+        private string _examTitle;
+        private string _questionProgress;
+        private string _remainingTimeDisplay;
+        private int _currentQuestionNumber;
+        private string _currentQuestionText;
+        private ObservableCollection<QuestionViewModel> _questions;
+
         // Windows API imports for kiosk mode
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
@@ -63,8 +74,8 @@ namespace SecureExamPlatform.UI
             _processMonitor = new EnhancedProcessMonitor();
             _screenshotPrevention = new ScreenshotPrevention();
             _captureBlocker = new ScreenCaptureBlocker();
-
             _studentAnswers = new Dictionary<string, string>();
+            _questions = new ObservableCollection<QuestionViewModel>();
 
             // Setup timers
             _examTimer = new DispatcherTimer
@@ -84,8 +95,81 @@ namespace SecureExamPlatform.UI
 
             // Start security monitoring
             StartSecurityMonitoring();
-
         }
+
+        #region Properties for Data Binding
+
+        public string StudentId
+        {
+            get => _studentId;
+            set
+            {
+                _studentId = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string ExamTitle
+        {
+            get => _examTitle;
+            set
+            {
+                _examTitle = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string QuestionProgress
+        {
+            get => _questionProgress;
+            set
+            {
+                _questionProgress = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string RemainingTimeDisplay
+        {
+            get => _remainingTimeDisplay;
+            set
+            {
+                _remainingTimeDisplay = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int CurrentQuestionNumber
+        {
+            get => _currentQuestionNumber;
+            set
+            {
+                _currentQuestionNumber = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string CurrentQuestionText
+        {
+            get => _currentQuestionText;
+            set
+            {
+                _currentQuestionText = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ObservableCollection<QuestionViewModel> Questions
+        {
+            get => _questions;
+            set
+            {
+                _questions = value;
+                OnPropertyChanged();
+            }
+        }
+
+        #endregion
 
         private void ConfigureKioskMode()
         {
@@ -106,19 +190,22 @@ namespace SecureExamPlatform.UI
                 }
             };
 
-            // Remove window chrome using WinAPI
-            var helper = new System.Windows.Interop.WindowInteropHelper(this);
-            int style = GetWindowLong(helper.Handle, GWL_STYLE);
-            SetWindowLong(helper.Handle, GWL_STYLE, style & ~WS_SY_MENU);
+            this.Loaded += (s, e) =>
+            {
+                // Remove window chrome using WinAPI
+                var helper = new System.Windows.Interop.WindowInteropHelper(this);
+                int style = GetWindowLong(helper.Handle, GWL_STYLE);
+                SetWindowLong(helper.Handle, GWL_STYLE, style & ~WS_SY_MENU);
 
-            // Keep window on top
-            SetWindowPos(helper.Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+                // Keep window on top
+                SetWindowPos(helper.Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
+                // Prevent screenshot
+                _screenshotPrevention.ProtectWindow(helper.Handle);
+            };
 
             // Capture all keyboard input
             PreviewKeyDown += OnPreviewKeyDown;
-
-            // Prevent screenshot
-            _screenshotPrevention.ProtectWindow(helper.Handle);
         }
 
         private void StartSecurityMonitoring()
@@ -174,7 +261,6 @@ namespace SecureExamPlatform.UI
             try
             {
                 var result = await _sessionManager.StartSession(studentId, sessionToken, examId);
-
                 if (!result.Success)
                 {
                     System.Windows.MessageBox.Show(result.ErrorMessage, "Login Failed",
@@ -210,10 +296,9 @@ namespace SecureExamPlatform.UI
 
                 // Update UI
                 StudentId = studentId;
+                ExamTitle = _examContent.Title;
                 QuestionProgress = $"Question {_currentQuestionIndex + 1} of {_examContent.Questions.Count}";
-                OnPropertyChanged(nameof(ExamTitle));
-                OnPropertyChanged(nameof(QuestionProgress));
-
+                
                 return true;
             }
             catch (Exception ex)
@@ -226,18 +311,32 @@ namespace SecureExamPlatform.UI
 
         private void DisplayQuestion(Question question)
         {
+            CurrentQuestionNumber = _currentQuestionIndex + 1;
             _currentQuestion = question;
 
             // Update question display
-            OnPropertyChanged(nameof(CurrentQuestionText));
-            OnPropertyChanged(nameof(CurrentQuestionNumber));
+            CurrentQuestionText = question.Text;
+
+            // Update question navigation
+            foreach (var q in Questions)
+            {
+                q.IsCurrent = q.Id == question.Id;
+            }
 
             // Load saved answer if exists
             if (_studentAnswers.ContainsKey(question.Id))
             {
-                // Restore previous answer
                 LoadSavedAnswer(question.Id);
             }
+            else
+            {
+                // Clear the answer box for a new question
+                AnswerTextBox.Text = string.Empty;
+            }
+
+            // Update navigation buttons
+            PreviousButton.IsEnabled = _currentQuestionIndex > 0;
+            NextButton.IsEnabled = _currentQuestionIndex < _examContent.Questions.Count - 1;
         }
 
         private void SaveCurrentAnswer()
@@ -246,16 +345,21 @@ namespace SecureExamPlatform.UI
 
             // Get answer based on question type
             string answer = GetCurrentAnswer();
-
             if (!string.IsNullOrEmpty(answer))
             {
                 _studentAnswers[_currentQuestion.Id] = answer;
+                
+                // Update question status
+                var questionVM = Questions.FirstOrDefault(q => q.Id == _currentQuestion.Id);
+                if (questionVM != null)
+                {
+                    questionVM.IsAnswered = true;
+                }
             }
         }
 
         private string GetCurrentAnswer()
         {
-            // This would get the actual answer from UI controls
             return AnswerTextBox.Text;
         }
 
@@ -263,7 +367,6 @@ namespace SecureExamPlatform.UI
         {
             if (_studentAnswers.ContainsKey(questionId))
             {
-                // Load the answer into UI controls
                 AnswerTextBox.Text = _studentAnswers[questionId];
             }
         }
@@ -281,17 +384,31 @@ namespace SecureExamPlatform.UI
             QuestionProgress = $"Question {_currentQuestionIndex + 1} of {_examContent.Questions.Count}";
         }
 
-        private void OnPreviousQuestion()
+        #region Event Handlers
+
+        private void PreviousButton_Click(object sender, RoutedEventArgs e)
         {
             NavigateToQuestion(_currentQuestionIndex - 1);
         }
 
-        private void OnNextQuestion()
+        private void NextButton_Click(object sender, RoutedEventArgs e)
         {
             NavigateToQuestion(_currentQuestionIndex + 1);
         }
 
-        private async void OnSubmitExam()
+        private void QuestionNavButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is string questionId)
+            {
+                var questionIndex = _examContent.Questions.FindIndex(q => q.Id == questionId);
+                if (questionIndex >= 0)
+                {
+                    NavigateToQuestion(questionIndex);
+                }
+            }
+        }
+
+        private async void SubmitButton_Click(object sender, RoutedEventArgs e)
         {
             // Confirm submission
             var result = System.Windows.MessageBox.Show(
@@ -299,7 +416,6 @@ namespace SecureExamPlatform.UI
                 "Confirm Submission",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
-
             if (result != MessageBoxResult.Yes) return;
 
             // Save current answer
@@ -339,12 +455,13 @@ namespace SecureExamPlatform.UI
             CleanupAndExit();
         }
 
+        #endregion
+
         private async Task SaveSubmission(ExamSubmission submission)
         {
-            // Save to encrypted local file
             await Task.Run(() =>
             {
-                var json = System.Text.Json.JsonSerializer.Serialize(submission);
+                var json = System.Text.Json.JsonSerializer.Serialize(submission, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                 var encrypted = EncryptData(json);
                 var filename = $"submission_{submission.StudentId}_{DateTime.Now:yyyyMMdd_HHmmss}.dat";
                 string submissionPath = System.IO.Path.Combine(
@@ -352,208 +469,92 @@ namespace SecureExamPlatform.UI
                     "SecureExam",
                     "Submissions",
                     filename);
+
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(submissionPath));
                 System.IO.File.WriteAllBytes(submissionPath, encrypted);
             });
         }
 
         private byte[] EncryptData(string data)
         {
-            // Placeholder for encryption
+            // For now, simple encoding. In production, use proper AES encryption
             return System.Text.Encoding.UTF8.GetBytes(data);
         }
 
         private void UpdateExamTimer(object sender, EventArgs e)
         {
             _remainingTime = _remainingTime.Subtract(TimeSpan.FromSeconds(1));
-
+            
+            // Update display
+            RemainingTimeDisplay = $"Time Remaining: {_remainingTime.Hours:00}:{_remainingTime.Minutes:00}:{_remainingTime.Seconds:00}";
+            
             if (_remainingTime <= TimeSpan.Zero)
             {
                 _examTimer.Stop();
-                System.Windows.MessageBox.Show("Time is up! The exam will now be submitted automatically.", "Time's Up", MessageBoxButton.OK, MessageBoxImage.Information);
-                OnSubmitExam();
+                System.Windows.MessageBox.Show("Time is up! The exam will now be submitted automatically.", 
+                    "Time's Up", MessageBoxButton.OK, MessageBoxImage.Information);
+                SubmitButton_Click(this, new RoutedEventArgs());
                 return;
-            }
-
-            OnPropertyChanged(nameof(RemainingTimeDisplay));
-
-            if (_remainingTime.TotalSeconds > 299 && _remainingTime.TotalSeconds <= 300)
-            {
-                System.Windows.MessageBox.Show("You have 5 minutes remaining!", "Time Warning",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
         private void AutoSaveAnswers(object sender, EventArgs e)
         {
             SaveCurrentAnswer();
-            LogEvent("Auto-saved answers");
+            LogSecurityEvent("Auto-save completed");
         }
 
         private void LogSecurityEvent(string message)
         {
-            Console.WriteLine($"[SECURITY] {message}");
-        }
+            try
+            {
+                string logPath = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "SecureExam", "Logs",
+                    $"exam_log_{DateTime.Now:yyyyMMdd}.txt");
 
-        private void LogEvent(string message)
-        {
-            Console.WriteLine($"[EXAM] {message}");
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(logPath));
+                System.IO.File.AppendAllText(logPath,
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+            }
+            catch
+            {
+                // Silently fail if logging doesn't work
+            }
         }
 
         private void CleanupAndExit()
         {
-            _processMonitor?.StopMonitoring();
-            _screenshotPrevention?.StopProtection();
-            _captureBlocker?.StopBlocking();
-            _processMonitor?.Dispose();
-            _screenshotPrevention?.Dispose();
-            System.Windows.Application.Current.Shutdown();
-        }
-
-        // --- Event Handlers for New UI ---
-        private void PreviousButton_Click(object sender, RoutedEventArgs e) => OnPreviousQuestion();
-        private void NextButton_Click(object sender, RoutedEventArgs e) => OnNextQuestion();
-        private void SubmitButton_Click(object sender, RoutedEventArgs e) => OnSubmitExam();
-
-        private void QuestionButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is System.Windows.Controls.Button button && button.Tag is string questionId)
+            try
             {
-                var questionIndex = _examContent.Questions.FindIndex(q => q.Id == questionId);
-                if (questionIndex >= 0)
-                {
-                    NavigateToQuestion(questionIndex);
-                }
+                _examTimer?.Stop();
+                _autoSaveTimer?.Stop();
+                _processMonitor?.StopMonitoring();
+                _screenshotPrevention?.StopProtection();
+                _captureBlocker?.StopBlocking();
+
+                _screenshotPrevention?.Dispose();
+                _processMonitor?.Dispose();
             }
-        }
-
-        private void FlagButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_currentQuestion != null)
+            catch (Exception ex)
             {
-                if (_flaggedQuestions.Contains(_currentQuestion.Id))
-                {
-                    _flaggedQuestions.Remove(_currentQuestion.Id);
-                    ShowNotification("Question unflagged");
-                }
-                else
-                {
-                    _flaggedQuestions.Add(_currentQuestion.Id);
-                    ShowNotification("Question flagged for review");
-                }
-                UpdateQuestionListUI();
+                LogSecurityEvent($"Cleanup error: {ex.Message}");
             }
+
+            this.Close();
         }
 
-        private void AnswerTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        protected override void OnClosed(EventArgs e)
         {
-            if (_currentQuestion != null && sender is System.Windows.Controls.TextBox textBox)
-            {
-                if (!string.IsNullOrWhiteSpace(textBox.Text))
-                {
-                    _attemptedQuestions.Add(_currentQuestion.Id);
-                }
-                ShowAutoSaveIndicator();
-                _autoSaveDebounceTimer?.Stop();
-                _autoSaveDebounceTimer = new DispatcherTimer
-                {
-                    Interval = TimeSpan.FromSeconds(2)
-                };
-                _autoSaveDebounceTimer.Tick += (s, args) =>
-                {
-                    SaveCurrentAnswer();
-                    _autoSaveDebounceTimer.Stop();
-                };
-                _autoSaveDebounceTimer.Start();
-            }
+            CleanupAndExit();
+            base.OnClosed(e);
         }
 
-        private void DismissWarning_Click(object sender, RoutedEventArgs e) => HideWarning();
+        public event PropertyChangedEventHandler PropertyChanged;
 
-        private void ShowWarning(string message)
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
-            Dispatcher.Invoke(() =>
-            {
-                WarningMessage.Text = message;
-                WarningOverlay.Visibility = Visibility.Visible;
-            });
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        private void HideWarning()
-        {
-            Dispatcher.Invoke(() => { WarningOverlay.Visibility = Visibility.Collapsed; });
-        }
-
-        private void ShowAutoSaveIndicator()
-        {
-            Dispatcher.Invoke(() =>
-            {
-                AutoSaveIndicator.Visibility = Visibility.Visible;
-                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-                timer.Tick += (s, e) =>
-                {
-                    AutoSaveIndicator.Visibility = Visibility.Collapsed;
-                    timer.Stop();
-                };
-                timer.Start();
-            });
-        }
-
-        private void ShowNotification(string message) => LogEvent($"NOTIFICATION: {message}");
-
-        private void UpdateQuestionListUI()
-        {
-            Dispatcher.Invoke(() =>
-            {
-                var qList = new List<QuestionViewModel>();
-                for (int i = 0; i < _examContent.Questions.Count; i++)
-                {
-                    var q = _examContent.Questions[i];
-                    var vm = new QuestionViewModel
-                    {
-                        Id = q.Id,
-                        Number = i + 1,
-                        StatusIcon = _flaggedQuestions.Contains(q.Id) ? "🚩" : "",
-                        StatusColor = _attemptedQuestions.Contains(q.Id) ? "#2e7d32" : "#444"
-                    };
-                    qList.Add(vm);
-                }
-                this.Questions = qList;
-                OnPropertyChanged(nameof(Questions));
-            });
-        }
-
-        // --- Properties for Data Binding ---
-        public string ExamTitle => _examContent?.Title ?? "Loading Exam...";
-        private string _studentId = "N/A";
-        public string StudentId
-        {
-            get => _studentId;
-            set { _studentId = value; OnPropertyChanged(nameof(StudentId)); }
-        }
-        private string _questionProgress = "Loading...";
-        public string QuestionProgress
-        {
-            get => _questionProgress;
-            set { _questionProgress = value; OnPropertyChanged(nameof(QuestionProgress)); }
-        }
-        public string CurrentQuestionText => _currentQuestion?.Text ?? "";
-        public int CurrentQuestionNumber => _currentQuestionIndex + 1;
-        public string RemainingTimeDisplay => $"{_remainingTime.Hours:D2}:{_remainingTime.Minutes:D2}:{_remainingTime.Seconds:D2}";
-        public List<QuestionViewModel> Questions { get; set; } = new List<QuestionViewModel>();
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        // --- Helper Classes and Fields ---
-        public class QuestionViewModel
-        {
-            public string Id { get; set; }
-            public int Number { get; set; }
-            public string StatusColor { get; set; }
-            public string StatusIcon { get; set; }
-        }
-        private readonly HashSet<string> _attemptedQuestions = new HashSet<string>();
-        private readonly HashSet<string> _flaggedQuestions = new HashSet<string>();
-        private DispatcherTimer _autoSaveDebounceTimer;
     }
 }
