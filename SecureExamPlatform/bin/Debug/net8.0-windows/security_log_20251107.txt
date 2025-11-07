@@ -1,0 +1,17 @@
+[2025-11-07 21:37:08] [ProcessTerminated] Terminated AnyDesk (PID: 5972) - Blocked process
+[2025-11-07 21:37:08] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-07 21:50:17] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-07 21:50:17] [ProcessTerminated] Terminated AnyDesk (PID: 18760) - Blocked process
+[2025-11-07 22:05:10] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-07 22:06:08] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-07 22:06:08] [ProcessTerminated] Terminated AnyDesk (PID: 8324) - Blocked process
+[2025-11-07 22:06:09] [ProcessTerminated] Terminated msedge (PID: 19012) - Blocked process
+[2025-11-07 22:06:09] [ProcessTerminated] Terminated msedge (PID: 20856) - Blocked process
+[2025-11-07 22:06:09] [ProcessTerminated] Terminated Code (PID: 20636) - Blocked process
+[2025-11-07 22:06:09] [ProcessTerminated] Terminated Code (PID: 9448) - Blocked process
+[2025-11-07 22:06:09] [ProcessTerminated] Terminated Code (PID: 11848) - Blocked process
+[2025-11-07 22:06:54] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-07 22:20:44] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-07 22:21:40] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-07 22:21:40] [ProcessTerminated] Terminated msedge (PID: 19704) - Blocked process
+[2025-11-07 22:21:40] [ProcessTerminated] Terminated msedge (PID: 2176) - Blocked process

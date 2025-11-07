@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Secure Exam Platform - Login"
-        Height="600"
+        Height="700"
         Width="450"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -17,98 +17,130 @@
             CornerRadius="15"
             BorderBrush="#444"
             BorderThickness="1">
-        <DockPanel>
-
-            <Border DockPanel.Dock="Top" 
-                    Height="40"
-                    Background="#2c2c2c" 
-                    CornerRadius="15,15,0,0"
-                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <Grid>
-                    <TextBlock Text="Secure Exam Platform"
-                               Foreground="White"
-                               FontSize="14"
-                               VerticalAlignment="Center"
-                               Margin="15,0,0,0"/>
-
-                    <Button Name="CloseButton"
-                            Content="✕"
-                            HorizontalAlignment="Right"
-                            Width="40"
-                            Height="40"
-                            Background="Transparent"
-                            Foreground="White"
-                            BorderThickness="0"
-                            FontSize="16"
-                            Click="CloseButton_Click"/>
-                </Grid>
+        <Grid>
+            <!-- Loading Overlay -->
+            <Border x:Name="LoadingPanel" 
+                    Background="#CC000000" 
+                    CornerRadius="15"
+                    Visibility="Collapsed"
+                    Panel.ZIndex="100">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <ProgressBar Width="200" Height="4" IsIndeterminate="True" 
+                                 Foreground="#4caf50" Background="#333" BorderThickness="0"/>
+                    <TextBlock x:Name="LoadingText" 
+                               Text="Loading..." 
+                               Foreground="White" 
+                               FontSize="14" 
+                               Margin="0,15,0,0"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
             </Border>
 
-            <Border DockPanel.Dock="Bottom"
-                    Background="#2a2a2a"
-                    CornerRadius="5"
-                    Padding="15"
-                    Margin="40,0,40,20">
-                <TextBlock FontSize="11"
-                           Foreground="#ffc107"
-                           TextWrapping="Wrap"
-                           TextAlignment="Center">
-                    <Run Text="⚠ IMPORTANT" FontWeight="Bold"/>
-                    <LineBreak/>
-                    <Run Text="Once you start the exam, you cannot close or minimize this window. All other applications will be blocked."/>
-                </TextBlock>
-            </Border>
-
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
-                <Grid Margin="40,0,40,0">
-                    <StackPanel VerticalAlignment="Center">
-                        <Border Width="100" 
-                                Height="100" 
-                                Background="#2c2c2c"
-                                CornerRadius="50"
-                                Margin="0,0,0,30">
-                            <TextBlock Text="🔒"
-                                       FontSize="48"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
-                        </Border>
-
-                        <TextBlock Text="Exam Login"
-                                   FontSize="28"
-                                   FontWeight="Bold"
+            <!-- Main Content -->
+            <DockPanel>
+                <!-- Title Bar -->
+                <Border DockPanel.Dock="Top" 
+                        Height="40"
+                        Background="#2c2c2c" 
+                        CornerRadius="15,15,0,0"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <Grid>
+                        <TextBlock Text="Secure Exam Platform"
                                    Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,0,0,5"/>
+                                   FontSize="14"
+                                   VerticalAlignment="Center"
+                                   Margin="15,0,0,0"/>
 
-                        <TextBlock Text="Enter your credentials to begin the exam"
-                                   FontSize="12"
-                                   Foreground="#aaa"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,0,0,30"/>
+                        <Button x:Name="CloseButton"
+                                Content="✕"
+                                HorizontalAlignment="Right"
+                                Width="40"
+                                Height="40"
+                                Background="Transparent"
+                                Foreground="White"
+                                BorderThickness="0"
+                                FontSize="16"
+                                Click="CloseButton_Click"/>
+                    </Grid>
+                </Border>
 
-                        <TextBlock Text="Student ID"
-                                   FontSize="12"
-                                   Foreground="#ccc"
-                                   Margin="0,0,0,5"/>
-                        <TextBox Name="StudentIdTextBox"
-                                 Height="45"
-                                 Background="#2c2c2c"
-                                 Foreground="White"
-                                 BorderBrush="#555"
-                                 BorderThickness="1"
-                                 Padding="10"
-                                 FontSize="14"
-                                 Margin="0,0,0,15"
-                                 MaxLength="20"
-                                 CharacterCasing="Upper"
-                                 GotFocus="TextBox_GotFocus"
-                                 LostFocus="TextBox_LostFocus"/>
+                <!-- Bottom Warning -->
+                <Border DockPanel.Dock="Bottom"
+                        Background="#2a2a2a"
+                        CornerRadius="5"
+                        Padding="15"
+                        Margin="40,0,40,20">
+                    <TextBlock FontSize="11"
+                               Foreground="#ffc107"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center">
+                        <Run Text="⚠ IMPORTANT" FontWeight="Bold"/>
+                        <LineBreak/>
+                        <Run Text="Once you start the exam, you cannot close or minimize this window. All other applications will be blocked."/>
+                    </TextBlock>
+                </Border>
 
-                        <TextBlock Text="Session Token"
-                                   FontSize="12"
-                                   Foreground="#ccc"
-                                   Margin="0,0,0,5"/>
-                        <PasswordBox Name="SessionTokenBox"
+                <!-- Main Content Area -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <Grid Margin="40,0,40,0">
+                        <StackPanel VerticalAlignment="Center">
+                            <!-- Logo -->
+                            <Border Width="100" 
+                                    Height="100" 
+                                    Background="#2c2c2c"
+                                    CornerRadius="50"
+                                    Margin="0,0,0,30">
+                                <TextBlock Text="🔒"
+                                           FontSize="48"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+
+                            <!-- Title -->
+                            <TextBlock Text="Exam Login"
+                                       FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,5"/>
+
+                            <TextBlock Text="Enter your credentials to begin the exam"
+                                       FontSize="12"
+                                       Foreground="#aaa"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,30"/>
+
+                            <!-- Status Message Border -->
+                            <Border x:Name="StatusBorder"
+                                    Background="#FEE2E2"
+                                    BorderBrush="#f44336"
+                                    BorderThickness="1"
+                                    CornerRadius="5"
+                                    Padding="12"
+                                    Margin="0,0,0,15"
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="StatusIcon"
+                                               Text="⚠"
+                                               FontSize="16"
+                                               Foreground="#f44336"
+                                               Margin="0,0,10,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusText"
+                                               Text=""
+                                               FontSize="12"
+                                               Foreground="#7f1d1d"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Student ID -->
+                            <TextBlock Text="Student ID"
+                                       FontSize="12"
+                                       Foreground="#ccc"
+                                       Margin="0,0,0,5"/>
+                            <TextBox x:Name="StudentIdTextBox"
                                      Height="45"
                                      Background="#2c2c2c"
                                      Foreground="White"
@@ -116,102 +148,142 @@
                                      BorderThickness="1"
                                      Padding="10"
                                      FontSize="14"
-                                     Margin="0,0,0,20"
-                                     MaxLength="50"
-                                     GotFocus="PasswordBox_GotFocus"
-                                     LostFocus="PasswordBox_LostFocus"
-                                     PasswordChanged="SessionTokenBox_PasswordChanged"/>
+                                     Margin="0,0,0,15"
+                                     MaxLength="20"
+                                     CharacterCasing="Upper"
+                                     GotFocus="TextBox_GotFocus"
+                                     LostFocus="TextBox_LostFocus"/>
 
-                        <Border Background="#2a2a2a"
-                                CornerRadius="5"
-                                Padding="10"
-                                Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock FontSize="11"
-                                           Foreground="#888"
-                                           TextWrapping="Wrap">
-                                    <Run Text="Computer: "/>
-                                    <Run Name="ComputerNameText" 
-                                         Text="{Binding ComputerName}"
-                                         FontWeight="Bold"
-                                         Foreground="#4caf50"/>
-                                </TextBlock>
-                                <TextBlock FontSize="11"
-                                           Foreground="#888"
-                                           Margin="0,5,0,0">
-                                    <Run Text="Hardware ID: "/>
-                                    <Run Name="HardwareIdText"
-                                         Text="{Binding HardwareId}"
+                            <!-- Access Token (renamed from SessionTokenBox) -->
+                            <TextBlock Text="Access Token"
+                                       FontSize="12"
+                                       Foreground="#ccc"
+                                       Margin="0,0,0,5"/>
+                            <PasswordBox x:Name="AccessTokenBox"
+                                         Height="45"
+                                         Background="#2c2c2c"
+                                         Foreground="White"
+                                         BorderBrush="#555"
+                                         BorderThickness="1"
+                                         Padding="10"
+                                         FontSize="14"
+                                         Margin="0,0,0,15"
+                                         MaxLength="50"
+                                         GotFocus="PasswordBox_GotFocus"
+                                         LostFocus="PasswordBox_LostFocus"
+                                         PasswordChanged="SessionTokenBox_PasswordChanged"/>
+
+                            <!-- TOTP Panel (2FA) - Initially Hidden -->
+                            <StackPanel x:Name="TotpPanel" Visibility="Collapsed" Margin="0,0,0,15">
+                                <Border Background="#2a2a2a"
+                                        CornerRadius="5"
+                                        BorderBrush="#ffc107"
+                                        BorderThickness="2"
+                                        Padding="15"
+                                        Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="🔐 Two-Factor Authentication"
+                                                   FontSize="14"
+                                                   FontWeight="Bold"
+                                                   Foreground="#ffc107"
+                                                   Margin="0,0,0,10"/>
+                                        <TextBlock Text="Enter the 6-digit code from your authenticator app"
+                                                   FontSize="11"
+                                                   Foreground="#ccc"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,10"/>
+                                        <TextBlock x:Name="TotpTimerText"
+                                                   Text="Code expires in 30s"
+                                                   FontSize="11"
+                                                   Foreground="#ffc107"
+                                                   FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Authentication Code"
+                                           FontSize="12"
+                                           Foreground="#ccc"
+                                           Margin="0,0,0,5"/>
+                                <TextBox x:Name="TotpCodeTextBox"
+                                         Height="50"
+                                         Background="#2c2c2c"
+                                         Foreground="White"
+                                         BorderBrush="#ffc107"
+                                         BorderThickness="2"
+                                         Padding="10"
+                                         FontSize="24"
                                          FontFamily="Consolas"
-                                         Foreground="#888"/>
-                                </TextBlock>
+                                         MaxLength="6"
+                                         TextAlignment="Center"
+                                         FontWeight="Bold"/>
                             </StackPanel>
-                        </Border>
 
-                        <Button Name="LoginButton"
-                                Content="Start Exam"
-                                Height="50"
-                                Background="#4caf50"
-                                Foreground="White"
-                                BorderThickness="0"
-                                FontSize="16"
-                                FontWeight="Bold"
-                                IsEnabled="False"
-                                Click="LoginButton_Click">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}"
-                                                        CornerRadius="5">
-                                                    <ContentPresenter HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Background" Value="#555"/>
-                                            <Setter Property="Foreground" Value="#888"/>
-                                        </Trigger>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Trigger.EnterActions>
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <ColorAnimation Storyboard.TargetProperty="(Button.Background).(SolidColorBrush.Color)"
-                                                                        To="#66bb6a"
-                                                                        Duration="0:0:0.2"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </Trigger.EnterActions>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+                            <!-- Computer Info -->
+                            <Border Background="#2a2a2a"
+                                    CornerRadius="5"
+                                    Padding="10"
+                                    Margin="0,0,0,20">
+                                <StackPanel>
+                                    <TextBlock FontSize="11"
+                                               Foreground="#888"
+                                               TextWrapping="Wrap">
+                                        <Run Text="Computer: "/>
+                                        <Run x:Name="ComputerNameText" 
+                                             Text="{Binding ComputerName}"
+                                             FontWeight="Bold"
+                                             Foreground="#4caf50"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="11"
+                                               Foreground="#888"
+                                               Margin="0,5,0,0">
+                                        <Run Text="Hardware ID: "/>
+                                        <Run x:Name="HardwareIdText"
+                                             Text="{Binding HardwareId}"
+                                             FontFamily="Consolas"
+                                             Foreground="#888"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
 
-                        <TextBlock Name="ErrorMessage"
-                                   Text=""
-                                   FontSize="12"
-                                   Foreground="#f44336"
-                                   TextWrapping="Wrap"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,10,0,0"
-                                   Visibility="Collapsed"/>
-
-                        <ProgressBar Name="LoadingIndicator"
-                                     Height="3"
-                                     Margin="0,10,0,0"
-                                     IsIndeterminate="True"
-                                     Foreground="#4caf50"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     Visibility="Collapsed"/>
-                    </StackPanel>
-                </Grid>
-            </ScrollViewer>
-        </DockPanel>
+                            <!-- Login Button -->
+                            <Button x:Name="LoginButton"
+                                    Content="Start Exam"
+                                    Height="50"
+                                    Background="#4caf50"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Click="LoginButton_Click">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            CornerRadius="5">
+                                                        <ContentPresenter HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter Property="Background" Value="#555"/>
+                                                <Setter Property="Foreground" Value="#888"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#66bb6a"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
     </Border>
 </Window>

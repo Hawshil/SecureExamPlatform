@@ -1,0 +1,379 @@
+﻿using SecureExamPlatform.Core;
+using SecureExamPlatform.Security;
+using System;
+using System.ComponentModel;
+using System.Management;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
+
+namespace SecureExamPlatform.UI
+{
+    public partial class LoginWindow : Window, INotifyPropertyChanged
+    {
+        private readonly CredentialManager credentialManager;
+        private string computerName = "";
+        private string hardwareId = "";
+        private bool isAuthenticating;
+        private DispatcherTimer totpTimer;
+        private StudentCredential pendingCredential;
+
+        public string ComputerName
+        {
+            get => computerName;
+            set { computerName = value; OnPropertyChanged(); }
+        }
+
+        public string HardwareId
+        {
+            get => hardwareId;
+            set { hardwareId = value; OnPropertyChanged(); }
+        }
+
+        public LoginWindow()
+        {
+            InitializeComponent();
+            DataContext = this;
+            credentialManager = new CredentialManager();
+            totpTimer = new DispatcherTimer();
+            InitializeComputerInfo();
+            SetupTotpTimer();
+
+            Loaded += (s, e) => StudentIdTextBox.Focus();
+            StudentIdTextBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) AccessTokenBox.Focus(); };
+            AccessTokenBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) HandleEnterKey(); };
+            TotpCodeTextBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) LoginButton_Click(s, e); };
+        }
+
+        private void InitializeComputerInfo()
+        {
+            try
+            {
+                ComputerName = Environment.MachineName;
+                HardwareId = GenerateHardwareId();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error getting system info: {ex.Message}", true);
+            }
+        }
+
+        private string GenerateHardwareId()
+        {
+            try
+            {
+                StringBuilder fingerprint = new StringBuilder();
+
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_ComputerSystemProduct"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        fingerprint.Append(obj["UUID"]?.ToString() ?? "");
+                    }
+                }
+
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_BaseBoard"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        fingerprint.Append(obj["SerialNumber"]?.ToString() ?? "");
+                    }
+                }
+
+                using (var sha256 = SHA256.Create())
+                {
+                    byte[] hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(fingerprint.ToString()));
+                    return BitConverter.ToString(hash).Replace("-", "").Substring(0, 16);
+                }
+            }
+            catch
+            {
+                return "UNKNOWN-HARDWARE";
+            }
+        }
+
+        private void SetupTotpTimer()
+        {
+            totpTimer.Interval = TimeSpan.FromSeconds(1);
+            totpTimer.Tick += (s, e) =>
+            {
+                int remaining = TotpManager.GetRemainingSeconds();
+                TotpTimerText.Text = $"Code expires in {remaining}s";
+
+                if (remaining <= 5)
+                {
+                    TotpTimerText.Foreground = (System.Windows.Media.Brush)FindResource("ErrorBrush");
+                }
+                else
+                {
+                    TotpTimerText.Foreground = (System.Windows.Media.Brush)FindResource("WarningBrush");
+                }
+            };
+        }
+
+        private void HandleEnterKey()
+        {
+            if (TotpPanel.Visibility == Visibility.Visible)
+            {
+                TotpCodeTextBox.Focus();
+            }
+            else
+            {
+                LoginButton_Click(this, new RoutedEventArgs());
+            }
+        }
+
+        private async void LoginButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (isAuthenticating) return;
+
+            string studentId = StudentIdTextBox.Text.Trim();
+            string accessToken = AccessTokenBox.Password.Trim();
+            string totpCode = TotpCodeTextBox.Text.Trim();
+
+            if (string.IsNullOrEmpty(studentId) || string.IsNullOrEmpty(accessToken))
+            {
+                ShowStatus("Please enter Student ID and Access Token", true);
+                return;
+            }
+
+            if (TotpPanel.Visibility == Visibility.Visible && string.IsNullOrEmpty(totpCode))
+            {
+                ShowStatus("Please enter the 6-digit authentication code", true);
+                return;
+            }
+
+            isAuthenticating = true;
+            ShowLoading("Verifying credentials...");
+            DisableInputs();
+
+            try
+            {
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                {
+                    try
+                    {
+                        if (TotpPanel.Visibility == Visibility.Collapsed)
+                        {
+                            var cred = await Task.Run(() => credentialManager.GetAllCredentials().Find(c =>
+                                c.StudentId == studentId &&
+                                c.AccessToken == accessToken &&
+                                !c.IsUsed), cts.Token);
+
+                            if (cred == null)
+                            {
+                                ShowStatus("Invalid credentials or none found for this Student ID / Access Token. Verify exam_credentials.json and regenerate the credential under this Windows user.", true);
+                                isAuthenticating = false;
+                                EnableInputs();
+                                HideLoading();
+                                return;
+                            }
+
+                            if (cred.HardwareId != HardwareId)
+                            {
+                                ShowStatus("Hardware mismatch. These credentials are for: " + cred.ComputerName, true);
+                                isAuthenticating = false;
+                                EnableInputs();
+                                HideLoading();
+                                return;
+                            }
+
+                            pendingCredential = cred;
+                            TotpPanel.Visibility = Visibility.Visible;
+                            totpTimer.Start();
+                            EnableInputs();
+                            HideLoading();
+                            TotpCodeTextBox.Focus();
+                            ShowStatus("Enter the 6-digit code from your authenticator app", false);
+                        }
+                        else
+                        {
+                            var result = await Task.Run(() => credentialManager.ValidateCredential(
+                                studentId, accessToken, HardwareId, totpCode), cts.Token);
+
+                            if (!result.success)
+                            {
+                                ShowStatus(result.message, true);
+                                TotpCodeTextBox.Clear();
+                                TotpCodeTextBox.Focus();
+                                isAuthenticating = false;
+                                EnableInputs();
+                                HideLoading();
+
+                                if (result.message.Contains("attempts exceeded"))
+                                {
+                                    await Task.Delay(2000, cts.Token);
+                                    Application.Current.Shutdown();
+                                }
+                                return;
+                            }
+
+                            // Clear the authenticating state before launching exam
+                            isAuthenticating = false;
+                            EnableInputs();
+                            
+                            ShowLoading("Launching exam...");
+                            await LaunchExam(result.credential);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        ShowStatus("Verification timeout. Please try again.", true);
+                        isAuthenticating = false;
+                        EnableInputs();
+                        HideLoading();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error: {ex.Message}", true);
+                isAuthenticating = false;
+                EnableInputs();
+                HideLoading();
+            }
+            finally
+            {
+                if (TotpPanel.Visibility == Visibility.Collapsed)
+                {
+                    isAuthenticating = false;
+                    EnableInputs();
+                    HideLoading();
+                }
+            }
+        }
+
+        private async Task LaunchExam(StudentCredential credential)
+        {
+            try
+            {
+                var sessionManager = new ExamSessionManager();
+                var startResult = await sessionManager.StartSession(
+                    credential.StudentId,
+                    credential.ExamId,
+                    credential.AccessToken
+                );
+
+                if (!startResult.Success)
+                {
+                    ShowStatus(startResult.ErrorMessage, true);
+                    isAuthenticating = false;
+                    EnableInputs();
+                    HideLoading();
+                    return;
+                }
+
+                var examWindow = new ExamWindow();
+                await examWindow.StartExam(credential.StudentId, credential.AccessToken, credential.ExamId);
+                examWindow.Show();
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Failed to launch exam: {ex.Message}", true);
+                isAuthenticating = false;
+                EnableInputs();
+                HideLoading();
+            }
+        }
+
+        private void ShowStatus(string message, bool isError)
+        {
+            StatusText.Text = message;
+            StatusIcon.Text = isError ? "⚠" : "ℹ";
+
+            if (isError)
+            {
+                StatusBorder.Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(254, 226, 226));
+                StatusBorder.BorderBrush = (System.Windows.Media.Brush)FindResource("ErrorBrush");
+            }
+            else
+            {
+                StatusBorder.Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(219, 234, 254));
+                StatusBorder.BorderBrush = (System.Windows.Media.Brush)FindResource("PrimaryBrush");
+            }
+
+            StatusBorder.Visibility = Visibility.Visible;
+        }
+
+        private void ShowLoading(string message)
+        {
+            LoadingText.Text = message;
+            LoadingPanel.Visibility = Visibility.Visible;
+        }
+
+        private void HideLoading()
+        {
+            LoadingPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void DisableInputs()
+        {
+            StudentIdTextBox.IsEnabled = false;
+            AccessTokenBox.IsEnabled = false;
+            TotpCodeTextBox.IsEnabled = false;
+            LoginButton.IsEnabled = false;
+        }
+
+        private void EnableInputs()
+        {
+            StudentIdTextBox.IsEnabled = true;
+            AccessTokenBox.IsEnabled = true;
+            TotpCodeTextBox.IsEnabled = true;
+            LoginButton.IsEnabled = true;
+        }
+
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+                this.DragMove();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
+        }
+
+        private void TextBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox && textBox.Text == "Student ID")
+                textBox.Text = "";
+        }
+
+        private void TextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox && string.IsNullOrWhiteSpace(textBox.Text))
+                textBox.Text = "Student ID";
+        }
+
+        private void PasswordBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            // Handle password box focus
+        }
+
+        private void PasswordBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Handle password box lost focus
+        }
+
+        private void SessionTokenBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            // Handle password changed event
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged([CallerMemberName] string name = "")
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+    }
+}

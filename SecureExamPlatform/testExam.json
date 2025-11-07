@@ -1,0 +1,22 @@
+﻿{
+  "examId": "TEST-001",
+  "title": "Test Exam",
+  "duration": 30,
+  "instructions": "This is a test exam. Answer all questions.",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "What is 2 + 2?",
+      "type": "MCQ",
+      "options": [ "2", "3", "4", "5" ],
+      "correctAnswer": "4",
+      "marks": 1
+    },
+    {
+      "id": "q2",
+      "text": "Explain recursion.",
+      "type": "Subjective",
+      "marks": 5
+    }
+  ]
+}

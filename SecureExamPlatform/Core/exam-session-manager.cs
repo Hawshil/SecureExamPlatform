@@ -17,6 +17,7 @@ namespace SecureExamPlatform.Core
         public bool Success { get; set; }
         public string ErrorMessage { get; set; }
         public ExamContent ExamContent { get; set; }
+        public bool IsResumed { get; set; }
     }
 
     public class ExamSession
@@ -44,22 +45,34 @@ namespace SecureExamPlatform.Core
         private readonly List<SessionEvent> _sessionEvents;
         private readonly object _sessionLock = new object();
 
-        // Session state file - prevents multiple instances
-        private readonly string _sessionFile = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SecureExam",
-            "session.lock"
-        );
+        private readonly string _sessionFile;
+        private readonly string _sessionDirectory;
 
         public ExamSessionManager()
         {
             _hardwareFingerprint = GenerateHardwareFingerprint();
             _sessionEvents = new List<SessionEvent>();
-            // Heartbeat will be sent every 60 seconds
             _heartbeatTimer = new System.Threading.Timer(SendHeartbeat, null, Timeout.Infinite, Timeout.Infinite);
 
+            // Setup session directory and file paths
+            _sessionDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SecureExam"
+            );
+            _sessionFile = Path.Combine(_sessionDirectory, "session.lock");
+
             // Ensure directory exists
-            Directory.CreateDirectory(Path.GetDirectoryName(_sessionFile));
+            Directory.CreateDirectory(_sessionDirectory);
+            
+            // Clean up any existing session file on startup
+            try
+            {
+                if (File.Exists(_sessionFile))
+                {
+                    File.Delete(_sessionFile);
+                }
+            }
+            catch { }
         }
 
         // This method provides access to the current session details.
@@ -116,53 +129,125 @@ namespace SecureExamPlatform.Core
         /// <summary>
         /// Starts a new exam session with the provided credentials.
         /// </summary>
-        public async Task<SessionStartResult> StartSession(string studentId, string sessionToken, string examId)
+        public async Task<SessionStartResult> StartSession(string studentId, string accessToken, string examId)
         {
             lock (_sessionLock)
             {
-                // Check if another session is already active in this instance
                 if (_currentSession != null && _currentSession.IsActive)
                 {
-                    return new SessionStartResult { Success = false, ErrorMessage = "Another exam session is already active." };
+                    // Check if it's the same student trying to resume
+                    if (_currentSession.StudentId == studentId && 
+                        _currentSession.ExamId == examId)
+                    {
+                        return new SessionStartResult
+                        {
+                            Success = true,
+                            ExamContent = GetMockExamContent(examId),
+                            IsResumed = true
+                        };
+                    }
+                    return new SessionStartResult 
+                    { 
+                        Success = false, 
+                        ErrorMessage = "Another exam session is already active." 
+                    };
                 }
 
-                // Check for existing session file (crash recovery or another instance running)
-                if (File.Exists(_sessionFile))
+                // Start a new session
+                _currentSession = new ExamSession
                 {
-                    return new SessionStartResult { Success = false, ErrorMessage = "An exam session is already running or did not shut down correctly. Please contact an administrator." };
+                    SessionId = Guid.NewGuid().ToString(),
+                    StudentId = studentId,
+                    ExamId = examId,
+                    StartTime = DateTime.UtcNow,
+                    IsActive = true
+                };
+
+                try
+                {
+                    // Create session file with JSON content for better recovery
+                    var sessionInfo = new
+                    {
+                        StudentId = studentId,
+                        ExamId = examId,
+                        StartTime = DateTime.UtcNow,
+                        AccessToken = accessToken
+                    };
+
+                    string json = System.Text.Json.JsonSerializer.Serialize(sessionInfo);
+                    File.WriteAllText(_sessionFile, json);
+
+                    // Start heartbeat
+                    _heartbeatTimer.Change(TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
+
+                    return new SessionStartResult
+                    {
+                        Success = true,
+                        ExamContent = GetMockExamContent(examId),
+                        IsResumed = false
+                    };
+                }
+                catch (Exception ex)
+                {
+                    _currentSession = null;
+                    return new SessionStartResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Failed to start session: {ex.Message}"
+                    };
                 }
             }
+        }
 
-            // --- Placeholder for Server Validation ---
-            await Task.Delay(500); // Simulate network latency
-            bool isValid = true; // Assume token is valid
-
-            if (!isValid)
+        /// <summary>
+        /// Ends the current exam session and cleans up resources.
+        /// </summary>
+        public void EndSession(bool submitted)
+        {
+            lock (_sessionLock)
             {
-                return new SessionStartResult { Success = false, ErrorMessage = "Invalid session token or hardware mismatch." };
+                if (_currentSession == null) return;
+
+                try
+                {
+                    _currentSession.IsActive = false;
+                    _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
+                    // Clean up session file
+                    if (File.Exists(_sessionFile))
+                    {
+                        File.Delete(_sessionFile);
+                    }
+
+                    _sessionEvents.Add(new SessionEvent
+                    {
+                        Timestamp = DateTime.Now,
+                        EventType = "SessionEnd",
+                        Message = $"Session ended. Submitted: {submitted}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error ending session: {ex.Message}");
+                }
+                finally
+                {
+                    _currentSession = null;
+                }
             }
+        }
 
-            // Create a lock file to indicate an active session
-            File.WriteAllText(_sessionFile, $"{studentId}|{examId}|{DateTime.UtcNow}");
+        /// <summary>
+        /// Periodically sends a signal to the server to confirm the session is still active.
+        /// </summary>
+        private void SendHeartbeat(object state)
+        {
+            if (_currentSession == null || !_currentSession.IsActive) return;
 
-            // Session started successfully
-            _currentSession = new ExamSession
-            {
-                SessionId = Guid.NewGuid().ToString(),
-                StudentId = studentId,
-                ExamId = examId,
-                StartTime = DateTime.Now,
-                IsActive = true
-            };
+            // --- Placeholder for Server Communication ---
+            Console.WriteLine($"[HEARTBEAT] Session {_currentSession.SessionId} is active.");
 
-            // Start the heartbeat timer to keep the session alive on the server
-            _heartbeatTimer.Change(TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
-
-            return new SessionStartResult
-            {
-                Success = true,
-                ExamContent = GetMockExamContent(examId) // Return the mock exam data
-            };
+            _sessionEvents.Add(new SessionEvent { Timestamp = DateTime.Now, EventType = "Heartbeat", Message = "Session heartbeat sent." });
         }
 
         /// <summary>
@@ -183,44 +268,6 @@ namespace SecureExamPlatform.Core
                     new Question { Id = "Q3", Text = "What is the purpose of the 'async' and 'await' keywords in C#?" }
                 }
             };
-        }
-
-        /// <summary>
-        /// Ends the current exam session and cleans up resources.
-        /// </summary>
-        public void EndSession(bool submitted)
-        {
-            lock (_sessionLock)
-            {
-                if (_currentSession == null) return;
-
-                _currentSession.IsActive = false;
-                _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite); // Stop the timer
-
-                // --- Placeholder for Server Communication ---
-                // Notify the server that the session has ended.
-
-                // Delete the lock file
-                if (File.Exists(_sessionFile))
-                {
-                    File.Delete(_sessionFile);
-                }
-
-                _sessionEvents.Add(new SessionEvent { Timestamp = DateTime.Now, EventType = "SessionEnd", Message = $"Session ended. Submitted: {submitted}" });
-            }
-        }
-
-        /// <summary>
-        /// Periodically sends a signal to the server to confirm the session is still active.
-        /// </summary>
-        private void SendHeartbeat(object state)
-        {
-            if (_currentSession == null || !_currentSession.IsActive) return;
-
-            // --- Placeholder for Server Communication ---
-            Console.WriteLine($"[HEARTBEAT] Session {_currentSession.SessionId} is active.");
-
-            _sessionEvents.Add(new SessionEvent { Timestamp = DateTime.Now, EventType = "Heartbeat", Message = "Session heartbeat sent." });
         }
     }
 }
@@ -343,57 +390,74 @@ namespace SecureExamPlatform.Core
 //        /// <summary>
 //        /// Starts a new exam session with the provided credentials.
 //        /// </summary>
-//        public async Task<SessionStartResult> StartSession(string studentId, string sessionToken, string examId)
+//        public async Task<SessionStartResult> StartSession(string studentId, string accessToken, string examId)
 //        {
 //            lock (_sessionLock)
 //            {
-//                // Check if another session is already active in this instance
 //                if (_currentSession != null && _currentSession.IsActive)
 //                {
-//                    return new SessionStartResult { Success = false, ErrorMessage = "Another exam session is already active." };
+//                    // Check if it's the same student trying to resume
+//                    if (_currentSession.StudentId == studentId && 
+//                        _currentSession.ExamId == examId)
+//                    {
+//                        return new SessionStartResult
+//                        {
+//                            Success = true,
+//                            ExamContent = GetMockExamContent(examId),
+//                            IsResumed = true
+//                        };
+//                    }
+//                    return new SessionStartResult 
+//                    { 
+//                        Success = false, 
+//                        ErrorMessage = "Another exam session is already active." 
+//                    };
 //                }
 
-//                // Check for existing session file (crash recovery or another instance running)
-//                if (File.Exists(_sessionFile))
+//                // Start a new session
+//                _currentSession = new ExamSession
 //                {
-//                    // For now, we will block a new session. 
-//                    // A more advanced implementation could allow resuming a session.
-//                    return new SessionStartResult { Success = false, ErrorMessage = "An exam session is already running or did not shut down correctly. Please contact an administrator." };
+//                    SessionId = Guid.NewGuid().ToString(),
+//                    StudentId = studentId,
+//                    ExamId = examId,
+//                    StartTime = DateTime.UtcNow,
+//                    IsActive = true
+//                };
+
+//                try
+//                {
+//                    // Create session file with JSON content for better recovery
+//                    var sessionInfo = new
+//                    {
+//                        StudentId = studentId,
+//                        ExamId = examId,
+//                        StartTime = DateTime.UtcNow,
+//                        AccessToken = accessToken
+//                    };
+
+//                    string json = System.Text.Json.JsonSerializer.Serialize(sessionInfo);
+//                    File.WriteAllText(_sessionFile, json);
+
+//                    // Start heartbeat
+//                    _heartbeatTimer.Change(TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
+
+//                    return new SessionStartResult
+//                    {
+//                        Success = true,
+//                        ExamContent = GetMockExamContent(examId),
+//                        IsResumed = false
+//                    };
+//                }
+//                catch (Exception ex)
+//                {
+//                    _currentSession = null;
+//                    return new SessionStartResult
+//                    {
+//                        Success = false,
+//                        ErrorMessage = $"Failed to start session: {ex.Message}"
+//                    };
 //                }
 //            }
-
-//            // --- Placeholder for Server Validation ---
-//            // In a real application, you would send the studentId, sessionToken, and _hardwareFingerprint
-//            // to a server to validate them. Here, we'll just simulate success.
-//            await Task.Delay(500); // Simulate network latency
-//            bool isValid = true; // Assume token is valid
-
-//            if (!isValid)
-//            {
-//                return new SessionStartResult { Success = false, ErrorMessage = "Invalid session token or hardware mismatch." };
-//            }
-
-//            // Create a lock file to indicate an active session
-//            File.WriteAllText(_sessionFile, $"{studentId}|{examId}|{DateTime.UtcNow}");
-
-//            // Session started successfully
-//            _currentSession = new ExamSession
-//            {
-//                SessionId = Guid.NewGuid().ToString(),
-//                StudentId = studentId,
-//                ExamId = examId,
-//                StartTime = DateTime.Now,
-//                IsActive = true
-//            };
-
-//            // Start the heartbeat timer to keep the session alive on the server
-//            _heartbeatTimer.Change(TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
-
-//            return new SessionStartResult
-//            {
-//                Success = true,
-//                ExamContent = null // Exam content will be loaded in ExamWindow.xaml.cs for now
-//            };
 //        }
 
 //        /// <summary>
@@ -405,19 +469,32 @@ namespace SecureExamPlatform.Core
 //            {
 //                if (_currentSession == null) return;
 
-//                _currentSession.IsActive = false;
-//                _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite); // Stop the timer
-
-//                // --- Placeholder for Server Communication ---
-//                // Notify the server that the session has ended.
-
-//                // Delete the lock file
-//                if (File.Exists(_sessionFile))
+//                try
 //                {
-//                    File.Delete(_sessionFile);
-//                }
+//                    _currentSession.IsActive = false;
+//                    _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
 
-//                _sessionEvents.Add(new SessionEvent { Timestamp = DateTime.Now, EventType = "SessionEnd", Message = $"Session ended. Submitted: {submitted}" });
+//                    // Clean up session file
+//                    if (File.Exists(_sessionFile))
+//                    {
+//                        File.Delete(_sessionFile);
+//                    }
+
+//                    _sessionEvents.Add(new SessionEvent
+//                    {
+//                        Timestamp = DateTime.Now,
+//                        EventType = "SessionEnd",
+//                        Message = $"Session ended. Submitted: {submitted}"
+//                    });
+//                }
+//                catch (Exception ex)
+//                {
+//                    Console.WriteLine($"Error ending session: {ex.Message}");
+//                }
+//                finally
+//                {
+//                    _currentSession = null;
+//                }
 //            }
 //        }
 
@@ -434,6 +511,26 @@ namespace SecureExamPlatform.Core
 //            Console.WriteLine($"[HEARTBEAT] Session {_currentSession.SessionId} is active.");
 
 //            _sessionEvents.Add(new SessionEvent { Timestamp = DateTime.Now, EventType = "Heartbeat", Message = "Session heartbeat sent." });
+//        }
+
+//        /// <summary>
+//        /// Helper method to generate sample exam data for testing.
+//        /// </summary>
+//        private ExamContent GetMockExamContent(string examId)
+//        {
+//            // In a real application, this data would come from a server or an encrypted file.
+//            return new ExamContent
+//            {
+//                ExamId = examId,
+//                Title = "CS101: Introduction to Programming Final",
+//                Duration = TimeSpan.FromMinutes(90),
+//                Questions = new List<Question>
+//                {
+//                    new Question { Id = "Q1", Text = "What is the main difference between a struct and a class in C#?" },
+//                    new Question { Id = "Q2", Text = "Explain the concept of polymorphism and provide a simple example." },
+//                    new Question { Id = "Q3", Text = "What is the purpose of the 'async' and 'await' keywords in C#?" }
+//                }
+//            };
 //        }
 //    }
 //}

@@ -11,7 +11,7 @@
         Topmost="True"
         Background="#1a1a1a"
         AllowsTransparency="False"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False" d:DesignWidth="806.5" d:DesignHeight="656.5">
 
     <Grid>
         <!-- Main Layout -->
@@ -22,7 +22,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header Section -->
-        <Border Grid.Row="0" Background="#2c2c2c" BorderBrush="#444" BorderThickness="0,0,0,2">
+        <Border Grid.Row="0" Background="#2c2c2c" BorderBrush="#444" BorderThickness="0,0,0,2" Margin="0,0,10,0">
             <Grid Margin="20,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -131,7 +131,7 @@
             <Border Grid.Column="1" 
                     Background="#2c2c2c" 
                     CornerRadius="10"
-                    Padding="30">
+                    Padding="30" Margin="0,0,-26,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
