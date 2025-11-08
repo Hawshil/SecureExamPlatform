@@ -3,56 +3,16 @@
   "WorkspaceRootPath": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\secureexamplatform.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\secureexamplatform.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\grading\\gradingtool.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\grading\\gradingtool.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\deployment_guide.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\deployment_guide.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\testexam.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\testexam.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\facultydashboard.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\facultydashboard.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\examwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\examwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\core\\exam-session-manager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\core\\exam-session-manager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\grading\\gradingtoolcli.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\grading\\gradingtoolcli.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform.tests\\grading\\gradingtooltests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|solutionrelative:secureexamplatform.tests\\grading\\gradingtooltests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform.tests\\core\\credentialmanagertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|solutionrelative:secureexamplatform.tests\\core\\credentialmanagertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform.tests\\core\\examsessionmanagertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|solutionrelative:secureexamplatform.tests\\core\\examsessionmanagertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform.tests\\secureexamplatform.tests.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
-      "RelativeMoniker": "D:0:0:{44400386-0CA2-43A1-9D6F-78B05FCC1776}|SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj|solutionrelative:secureexamplatform.tests\\secureexamplatform.tests.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\facultydashboard.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\facultydashboard.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     }
   ],
   "DocumentGroupContainers": [
@@ -62,7 +22,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 9,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Bookmark",
@@ -78,162 +38,38 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
-              "Title": "ExamSessionManagerTests.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\Core\\ExamSessionManagerTests.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform.Tests\\Core\\ExamSessionManagerTests.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\Core\\ExamSessionManagerTests.cs",
-              "RelativeToolTip": "SecureExamPlatform.Tests\\Core\\ExamSessionManagerTests.cs",
-              "ViewState": "AgIAAO8AAAAAAAAAAEBVwPMAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-08T07:43:00.743Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 10,
-              "Title": "CredentialManagerTests.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\Core\\CredentialManagerTests.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform.Tests\\Core\\CredentialManagerTests.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\Core\\CredentialManagerTests.cs",
-              "RelativeToolTip": "SecureExamPlatform.Tests\\Core\\CredentialManagerTests.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAKMAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-08T07:42:37.601Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 9,
-              "Title": "GradingToolTests.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\Grading\\GradingToolTests.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform.Tests\\Grading\\GradingToolTests.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\Grading\\GradingToolTests.cs",
-              "RelativeToolTip": "SecureExamPlatform.Tests\\Grading\\GradingToolTests.cs",
-              "ViewState": "AgIAANUAAAAAAAAAAEBVwNkAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-08T07:42:08.406Z"
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "GradingTool.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Grading\\GradingTool.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\Grading\\GradingTool.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Grading\\GradingTool.cs",
-              "RelativeToolTip": "SecureExamPlatform\\Grading\\GradingTool.cs",
-              "ViewState": "AgIAAHoBAAAAAAAAAAAhwIUBAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-08T07:30:31.565Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "GradingToolCLI.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Grading\\GradingToolCLI.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\Grading\\GradingToolCLI.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Grading\\GradingToolCLI.cs",
-              "RelativeToolTip": "SecureExamPlatform\\Grading\\GradingToolCLI.cs",
-              "ViewState": "AgIAAE0AAAAAAAAAAABRwFAAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-08T07:25:16.351Z"
+              "Title": "App.xaml",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\App.xaml",
+              "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\App.xaml",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\App.xaml",
+              "RelativeToolTip": "SecureExamPlatform\\UI\\App.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-11-08T09:44:03.998Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "Deployment_Guide.md",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Deployment_Guide.md",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\Deployment_Guide.md",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Deployment_Guide.md",
-              "RelativeToolTip": "SecureExamPlatform\\Deployment_Guide.md",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAJMBAAAlAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
-              "WhenOpened": "2025-11-08T07:20:28.179Z"
+              "Title": "FacultyDashboard.xaml",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\FacultyDashboard.xaml",
+              "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\FacultyDashboard.xaml",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\FacultyDashboard.xaml",
+              "RelativeToolTip": "SecureExamPlatform\\UI\\FacultyDashboard.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-11-08T09:17:39.65Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "SecureExamPlatform.csproj",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\SecureExamPlatform.csproj",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\SecureExamPlatform.csproj",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\SecureExamPlatform.csproj",
-              "RelativeToolTip": "SecureExamPlatform\\SecureExamPlatform.csproj",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2025-11-08T07:15:35.263Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 12,
-              "Title": "SecureExamPlatform.Tests.csproj",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj",
-              "RelativeDocumentMoniker": "SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj",
-              "RelativeToolTip": "SecureExamPlatform.Tests\\SecureExamPlatform.Tests.csproj",
-              "ViewState": "AgIAAB4AAAAAAAAAAABBwAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2025-11-08T07:45:57.129Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "testExam.json",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\testExam.json",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\testExam.json",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\testExam.json",
-              "RelativeToolTip": "SecureExamPlatform\\testExam.json",
-              "ViewState": "AgIAAFMAAAAAAAAAAAAAAHEAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-11-08T07:14:23.756Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
               "Title": "FacultyDashboard.xaml.cs",
               "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\FacultyDashboard.xaml.cs",
               "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\FacultyDashboard.xaml.cs",
               "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\FacultyDashboard.xaml.cs",
               "RelativeToolTip": "SecureExamPlatform\\UI\\FacultyDashboard.xaml.cs",
-              "ViewState": "AgIAALoBAAAAAAAAAAAqwMkBAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAyAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-08T07:10:58.971Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "LoginWindow.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
-              "RelativeToolTip": "SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
-              "ViewState": "AgIAAIYBAAAAAAAAAAAiwKkBAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-07T16:25:29.447Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "ExamWindow.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
-              "RelativeToolTip": "SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
-              "ViewState": "AgIAAKMCAAAAAAAAAAAAALUCAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-07T16:12:34.657Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "exam-session-manager.cs",
-              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Core\\exam-session-manager.cs",
-              "RelativeDocumentMoniker": "SecureExamPlatform\\Core\\exam-session-manager.cs",
-              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\Core\\exam-session-manager.cs",
-              "RelativeToolTip": "SecureExamPlatform\\Core\\exam-session-manager.cs",
-              "ViewState": "AgIAAEYBAAAAAAAAAABRwEkBAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-07T16:11:58.946Z"
+              "WhenOpened": "2025-11-08T09:17:11.258Z",
+              "EditorCaption": ""
             }
           ]
         }
