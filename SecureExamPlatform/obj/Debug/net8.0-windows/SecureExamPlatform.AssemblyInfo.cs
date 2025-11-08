@@ -16,7 +16,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright © 2025")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Secure examination platform with anti-cheat mechanisms")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4628aa822a814f24a3ab8a5297588de442a1d609")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d58ceed0418b350a450d7e06e5c70103777e15d0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Secure Exam Platform")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SecureExamPlatform")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

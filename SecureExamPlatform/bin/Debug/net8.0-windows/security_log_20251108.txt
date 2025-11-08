@@ -1,0 +1,4 @@
+[2025-11-08 15:28:53] [SuspiciousPath] Suspicious process path: c:\users\12345\downloads\trafficmonitor_v1.84.1_x64\trafficmonitor\trafficmonitor.exe
+[2025-11-08 15:28:54] [ProcessTerminated] Terminated msedge (PID: 1484) - Blocked process
+[2025-11-08 15:28:54] [ProcessTerminated] Terminated msedge (PID: 7952) - Blocked process
+[2025-11-08 15:28:54] [ProcessTerminated] Terminated AnyDesk (PID: 20216) - Blocked process

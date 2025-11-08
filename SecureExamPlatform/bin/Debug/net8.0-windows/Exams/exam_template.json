@@ -1,0 +1,28 @@
+{
+  "ExamId": "exam_template",
+  "Title": "Imported from CSV",
+  "Duration": "01:00:00",
+  "Questions": [
+    {
+      "Id": "q1",
+      "Text": "What is OOP?",
+      "Type": 1,
+      "Options": [
+        "Programming",
+        "Design",
+        "Both",
+        "Neither"
+      ],
+      "CorrectAnswer": "Both",
+      "Points": 2
+    },
+    {
+      "Id": "q2",
+      "Text": "Explain polymorphism",
+      "Type": 0,
+      "Options": [],
+      "CorrectAnswer": null,
+      "Points": 10
+    }
+  ]
+}

@@ -39,11 +39,15 @@ C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\App.baml
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\ExamWindow.baml
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\FacultyDashboard.baml
+C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\LauncherWindow.baml
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\LoginWindow.baml
+C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\SimplifiedLoginWindow.baml
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\App.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\ExamWindow.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\FacultyDashboard.g.cs
+C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\LauncherWindow.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\LoginWindow.g.cs
+C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\SimplifiedLoginWindow.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\SecureExamPlatform_Content.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\SecureExamPlatform_MarkupCompile.cache
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\SecureExamPlatform.g.resources

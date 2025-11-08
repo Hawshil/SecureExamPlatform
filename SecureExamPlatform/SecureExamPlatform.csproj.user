@@ -5,7 +5,13 @@
     <Compile Update="UI\FacultyDashboard.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="UI\LauncherWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="UI\LoginWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="UI\SimplifiedLoginWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

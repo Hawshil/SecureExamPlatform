@@ -1,0 +1,271 @@
+﻿<Window x:Class="SecureExamPlatform.UI.FacultyDashboard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Faculty Dashboard - Secure Exam Platform"
+        Height="700" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BackgroundBrush}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0" Background="{StaticResource PrimaryBrush}" Padding="20">
+            <StackPanel>
+                <TextBlock Text="Faculty Dashboard" 
+                           FontSize="18" 
+                           FontWeight="Bold" 
+                           Foreground="White"
+                           Margin="0,0,0,32"/>
+
+                <Button Content="📝 Create Exam" 
+                        x:Name="CreateExamBtn"
+                        Click="CreateExam_Click"
+                        Style="{StaticResource ModernButton}"
+                        Margin="0,0,0,12"/>
+                <Button Content="📋 Import Questions" 
+                        x:Name="ImportQuestionsBtn"
+                        Click="ImportQuestions_Click"
+                        Style="{StaticResource ModernButton}"
+                        Margin="0,0,0,12"/>
+                <Button Content="📁 Select CSV File"
+                        x:Name="SelectCSVBtn"
+                        Click="ImportCSV_Click"
+                        Style="{StaticResource ModernButton}"
+                        Width="200"
+                        HorizontalAlignment="Left"
+                        Margin="0,0,0,16"/>
+                <Button Content="🔑 Generate Credentials" 
+                        x:Name="GenCredsBtn"
+                        Click="GenerateCredentials_Click"
+                        Style="{StaticResource ModernButton}"
+                        Margin="0,0,0,12"/>
+                <Button Content="👥 View Students" 
+                        x:Name="ViewStudentsBtn"
+                        Click="ViewStudents_Click"
+                        Style="{StaticResource ModernButton}"
+                        Margin="0,0,0,32"/>
+
+                <TextBlock Text="Active Exams" 
+                           FontSize="14" 
+                           Foreground="#93C5FD"
+                           Margin="0,0,0,12"/>
+                <ListBox x:Name="ActiveExamsList"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Foreground="White"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <TabControl x:Name="MainTabControl" 
+                    Grid.Column="1" 
+                    Margin="24"
+                    Background="Transparent"
+                    BorderThickness="0">
+
+            <!-- Question Import Tab -->
+            <TabItem Header="Import Questions" x:Name="ImportTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24" MaxWidth="900">
+                        <TextBlock Text="Import Exam Questions" 
+                                   FontSize="24" 
+                                   FontWeight="Bold"
+                                   Margin="0,0,0,24"/>
+
+                        <Border Background="White" 
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="24"
+                                Margin="0,0,0,24">
+                            <StackPanel>
+                                <TextBlock Text="Import from JSON File" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,16"/>
+
+                                <TextBlock Text="JSON Format:" 
+                                           FontSize="13"
+                                           Margin="0,0,0,8"/>
+                                <Border Background="#F3F4F6" 
+                                        CornerRadius="6" 
+                                        Padding="16"
+                                        Margin="0,0,0,16">
+                                    <TextBlock FontFamily="Consolas" FontSize="11" TextWrapping="Wrap">
+{
+  "examId": "CSE101-MID-2025",
+  "title": "Computer Science Midterm",
+  "duration": 120,
+  "questions": [
+    {
+      "id": "q1",
+      "text": "What is encapsulation?",
+      "type": "MCQ",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": "A",
+      "marks": 2
+    },
+    {
+      "id": "q2",
+      "text": "Explain polymorphism",
+      "type": "Subjective",
+      "marks": 5
+    }
+  ]
+}
+                                    </TextBlock>
+                                </Border>
+
+                                <Button Content="📁 Select JSON File"
+                                        x:Name="SelectFileBtn"
+                                        Click="SelectFile_Click"
+                                        Style="{StaticResource ModernButton}"
+                                        Width="200"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,0,0,16"/>
+
+                                <TextBlock x:Name="SelectedFileText"
+                                           Text="No file selected"
+                                           FontSize="12"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Margin="0,0,0,16"/>
+
+                                <Button Content="⬆ Import Questions"
+                                        x:Name="ImportBtn"
+                                        Click="Import_Click"
+                                        Style="{StaticResource ModernButton}"
+                                        Width="200"
+                                        HorizontalAlignment="Left"
+                                        IsEnabled="False"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="ImportStatus"
+                                   Text=""
+                                   FontSize="13"
+                                   Margin="0,16,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Credential Generation Tab -->
+            <TabItem Header="Generate Credentials" x:Name="CredentialsTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24" MaxWidth="900">
+                        <TextBlock Text="Generate Student Credentials" 
+                                   FontSize="24" 
+                                   FontWeight="Bold"
+                                   Margin="0,0,0,24"/>
+
+                        <Border Background="White" 
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="24">
+                            <StackPanel>
+                                <TextBlock Text="Exam Selection" 
+                                           FontSize="13" 
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,8"/>
+                                <ComboBox x:Name="ExamSelector"
+                                          Height="40"
+                                          Margin="0,0,0,24"/>
+
+                                <TextBlock Text="Student ID" 
+                                           FontSize="13" 
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,8"/>
+                                <TextBox x:Name="StudentIdInput"
+                                         Style="{StaticResource ModernTextBox}"
+                                         Margin="0,0,0,24"/>
+
+                                <TextBlock Text="Computer Name (Optional)" 
+                                           FontSize="13" 
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,8"/>
+                                <TextBox x:Name="ComputerNameInput"
+                                         Style="{StaticResource ModernTextBox}"
+                                         Margin="0,0,0,24"/>
+
+                                <TextBlock Text="Hardware ID" 
+                                           FontSize="13" 
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,8"/>
+                                <TextBox x:Name="HardwareIdInput"
+                                         Style="{StaticResource ModernTextBox}"
+                                         Margin="0,0,0,24"/>
+
+                                <Button Content="🔑 Generate Credentials"
+                                        x:Name="GenerateBtn"
+                                        Click="GenerateSimpleCredentials_Click"
+                                        Style="{StaticResource ModernButton}"
+                                        Width="250"
+                                        HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Generated Credentials Display -->
+                        <Border x:Name="CredentialsDisplay"
+                                Background="#DBEAFE"
+                                BorderBrush="{StaticResource PrimaryBrush}"
+                                BorderThickness="2"
+                                CornerRadius="8"
+                                Padding="24"
+                                Margin="0,24,0,0"
+                                Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="✓ Credentials Generated Successfully" 
+                                           FontSize="16" 
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource SuccessBrush}"
+                                           Margin="0,0,0,16"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Student ID:" Grid.Row="0" Grid.Column="0" Margin="0,0,0,12"/>
+                                    <TextBlock x:Name="GenStudentId" Grid.Row="0" Grid.Column="1" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="Access Token:" Grid.Row="1" Grid.Column="0" Margin="0,0,0,12"/>
+                                    <TextBlock x:Name="GenAccessToken" Grid.Row="1" Grid.Column="1" FontFamily="Consolas" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="TOTP Secret:" Grid.Row="2" Grid.Column="0" Margin="0,0,0,12"/>
+                                    <TextBlock x:Name="GenTotpSecret" Grid.Row="2" Grid.Column="1" FontFamily="Consolas" FontSize="11" Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="Current TOTP:" Grid.Row="3" Grid.Column="0" Margin="0,0,0,12"/>
+                                    <TextBlock x:Name="GenCurrentTotp" Grid.Row="3" Grid.Column="1" FontFamily="Consolas" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="Valid Until:" Grid.Row="4" Grid.Column="0"/>
+                                    <TextBlock x:Name="GenValidUntil" Grid.Row="4" Grid.Column="1" FontWeight="SemiBold"/>
+                                </Grid>
+
+                                <Button Content="📋 Copy All Details"
+                                        x:Name="CopyBtn"
+                                        Click="CopyCredentials_Click"
+                                        Style="{StaticResource ModernButton}"
+                                        Width="200"
+                                        Margin="0,16,0,0"
+                                        HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

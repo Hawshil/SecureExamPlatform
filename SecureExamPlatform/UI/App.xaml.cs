@@ -76,9 +76,9 @@ namespace SecureExamPlatform.UI
 
             base.OnStartup(e);
 
-            // Show the login window explicitly
-            var loginWindow = new LoginWindow();
-            loginWindow.Show();
+            // Show launcher instead of direct login
+            var launcher = new LauncherWindow();
+            launcher.Show();
         }
 
         protected override void OnExit(ExitEventArgs e)

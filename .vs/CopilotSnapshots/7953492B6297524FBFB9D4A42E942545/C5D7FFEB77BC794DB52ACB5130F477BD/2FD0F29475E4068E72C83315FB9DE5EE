@@ -1,0 +1,10 @@
+﻿<Application x:Class="SecureExamPlatform.UI.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#4caf50"/>
+        <SolidColorBrush x:Key="ErrorBrush" Color="#f44336"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#ffc107"/>
+        <SolidColorBrush x:Key="InfoBrush" Color="#2196f3"/>
+    </Application.Resources>
+</Application>
