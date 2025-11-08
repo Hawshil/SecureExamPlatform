@@ -44,6 +44,7 @@ C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\ExamWindow.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\FacultyDashboard.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\UI\LoginWindow.g.cs
+C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\SecureExamPlatform_Content.g.cs
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\SecureExamPlatform_MarkupCompile.cache
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\SecureExamPlatform.g.resources
 C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform\obj\Debug\net8.0-windows\SecureExamPlatform.GeneratedMSBuildEditorConfig.editorconfig

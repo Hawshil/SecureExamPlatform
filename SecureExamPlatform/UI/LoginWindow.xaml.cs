@@ -42,26 +42,36 @@ namespace SecureExamPlatform.UI
             DataContext = this;
             credentialManager = new CredentialManager();
             totpTimer = new DispatcherTimer();
-            InitializeComputerInfo();
-            SetupTotpTimer();
 
-            Loaded += (s, e) => StudentIdTextBox.Focus();
+            // Initialize asynchronously to avoid blocking UI
+            Loaded += async (s, e) => await InitializeAsync();
+
             StudentIdTextBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) AccessTokenBox.Focus(); };
             AccessTokenBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) HandleEnterKey(); };
             TotpCodeTextBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) LoginButton_Click(s, e); };
         }
 
-        private void InitializeComputerInfo()
+        private async Task InitializeAsync()
         {
-            try
+            ShowLoading("Initializing...");
+
+            // Run hardware detection in background
+            await Task.Run(() =>
             {
-                ComputerName = Environment.MachineName;
-                HardwareId = GenerateHardwareId();
-            }
-            catch (Exception ex)
-            {
-                ShowStatus($"Error getting system info: {ex.Message}", true);
-            }
+                try
+                {
+                    ComputerName = Environment.MachineName;
+                    HardwareId = GenerateHardwareId();
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() => ShowStatus($"Warning: {ex.Message}", false));
+                }
+            });
+
+            HideLoading();
+            StudentIdTextBox.Focus();
+            SetupTotpTimer();
         }
 
         private string GenerateHardwareId()
@@ -75,6 +85,7 @@ namespace SecureExamPlatform.UI
                     foreach (var obj in searcher.Get())
                     {
                         fingerprint.Append(obj["UUID"]?.ToString() ?? "");
+                        break; // Only need first result
                     }
                 }
 
@@ -83,6 +94,7 @@ namespace SecureExamPlatform.UI
                     foreach (var obj in searcher.Get())
                     {
                         fingerprint.Append(obj["SerialNumber"]?.ToString() ?? "");
+                        break; // Only need first result
                     }
                 }
 
@@ -137,6 +149,7 @@ namespace SecureExamPlatform.UI
             string accessToken = AccessTokenBox.Password.Trim();
             string totpCode = TotpCodeTextBox.Text.Trim();
 
+            // Validation
             if (string.IsNullOrEmpty(studentId) || string.IsNullOrEmpty(accessToken))
             {
                 ShowStatus("Please enter Student ID and Access Token", true);
@@ -150,93 +163,108 @@ namespace SecureExamPlatform.UI
             }
 
             isAuthenticating = true;
-            ShowLoading("Verifying credentials...");
             DisableInputs();
 
             try
             {
-                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                if (TotpPanel.Visibility == Visibility.Collapsed)
                 {
-                    try
+                    // First stage: Validate credentials
+                    ShowLoading("Validating credentials...");
+
+                    var cred = await Task.Run(() => credentialManager.GetAllCredentials().Find(c =>
+                        c.StudentId == studentId &&
+                        c.AccessToken == accessToken &&
+                        !c.IsUsed));
+
+                    if (cred == null)
                     {
-                        if (TotpPanel.Visibility == Visibility.Collapsed)
-                        {
-                            var cred = await Task.Run(() => credentialManager.GetAllCredentials().Find(c =>
-                                c.StudentId == studentId &&
-                                c.AccessToken == accessToken), cts.Token); // Remove !c.IsUsed check
-
-                            if (cred == null)
-                            {
-                                ShowStatus("Invalid credentials or none found for this Student ID / Access Token. Verify exam_credentials.json and regenerate the credential under this Windows user.", true);
-                                isAuthenticating = false;
-                                EnableInputs();
-                                HideLoading();
-                                return;
-                            }
-
-                            if (cred.HardwareId != HardwareId)
-                            {
-                                ShowStatus("Hardware mismatch. These credentials are for: " + cred.ComputerName, true);
-                                isAuthenticating = false;
-                                EnableInputs();
-                                HideLoading();
-                                return;
-                            }
-
-                            pendingCredential = cred;
-                            TotpPanel.Visibility = Visibility.Visible;
-                            totpTimer.Start();
-                            isAuthenticating = false;
-                            EnableInputs();
-                            HideLoading();
-                            TotpCodeTextBox.Focus();
-                            ShowStatus("Enter the 6-digit code from your authenticator app", false);
-                        }
-                        else
-                        {
-                            if (pendingCredential == null)
-                            {
-                                ShowStatus("Session expired. Please start over.", true);
-                                TotpPanel.Visibility = Visibility.Collapsed;
-                                isAuthenticating = false;
-                                EnableInputs();
-                                HideLoading();
-                                return;
-                            }
-
-                            // Use the stored pending credential for TOTP validation
-                            if (!TotpManager.ValidateCode(pendingCredential.TotpSecret, totpCode))
-                            {
-                                pendingCredential.AttemptsUsed++;
-                                credentialManager.UpdateCredential(pendingCredential);
-
-                                ShowStatus($"Invalid authentication code. {pendingCredential.MaxAttempts - pendingCredential.AttemptsUsed} attempts remaining", true);
-                                TotpCodeTextBox.Clear();
-                                TotpCodeTextBox.Focus();
-                                isAuthenticating = false;
-                                EnableInputs();
-                                HideLoading();
-
-                                if (pendingCredential.AttemptsUsed >= pendingCredential.MaxAttempts)
-                                {
-                                    await Task.Delay(2000, cts.Token);
-                                    Application.Current.Shutdown();
-                                }
-                                return;
-                            }
-
-                            // TOTP validation successful - don't mark as used until exam actually starts
-                            ShowLoading("Launching exam...");
-                            await LaunchExam(pendingCredential);
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        ShowStatus("Verification timeout. Please try again.", true);
+                        ShowStatus("Invalid credentials. Please check your Student ID and Access Token.", true);
                         isAuthenticating = false;
                         EnableInputs();
                         HideLoading();
+                        return;
                     }
+
+                    // Check expiration
+                    if (DateTime.UtcNow > cred.ExpiresAt)
+                    {
+                        ShowStatus("These credentials have expired. Please contact your instructor.", true);
+                        isAuthenticating = false;
+                        EnableInputs();
+                        HideLoading();
+                        return;
+                    }
+
+                    // Check hardware match
+                    if (cred.HardwareId != HardwareId)
+                    {
+                        ShowStatus($"Hardware mismatch. These credentials are for: {cred.ComputerName}", true);
+                        isAuthenticating = false;
+                        EnableInputs();
+                        HideLoading();
+                        return;
+                    }
+
+                    // Credentials valid, show TOTP panel
+                    pendingCredential = cred;
+                    TotpPanel.Visibility = Visibility.Visible;
+                    totpTimer.Start();
+                    isAuthenticating = false;
+                    EnableInputs();
+                    HideLoading();
+                    TotpCodeTextBox.Focus();
+                    ShowStatus("Enter the 6-digit code from your authenticator app", false);
+                }
+                else
+                {
+                    // Second stage: Validate TOTP and launch exam
+                    ShowLoading("Verifying authentication code...");
+
+                    if (pendingCredential == null)
+                    {
+                        ShowStatus("Session expired. Please start over.", true);
+                        TotpPanel.Visibility = Visibility.Collapsed;
+                        isAuthenticating = false;
+                        EnableInputs();
+                        HideLoading();
+                        return;
+                    }
+
+                    // Validate TOTP
+                    bool isValidTotp = await Task.Run(() =>
+                        TotpManager.ValidateCode(pendingCredential.TotpSecret, totpCode));
+
+                    if (!isValidTotp)
+                    {
+                        pendingCredential.AttemptsUsed++;
+                        credentialManager.UpdateCredential(pendingCredential);
+
+                        ShowStatus($"Invalid code. {pendingCredential.MaxAttempts - pendingCredential.AttemptsUsed} attempts remaining", true);
+                        TotpCodeTextBox.Clear();
+                        TotpCodeTextBox.Focus();
+                        isAuthenticating = false;
+                        EnableInputs();
+                        HideLoading();
+
+                        if (pendingCredential.AttemptsUsed >= pendingCredential.MaxAttempts)
+                        {
+                            await Task.Delay(2000);
+                            MessageBox.Show("Maximum attempts exceeded. Application will now close.",
+                                "Access Denied", MessageBoxButton.OK, MessageBoxImage.Error);
+                            Application.Current.Shutdown();
+                        }
+                        return;
+                    }
+
+                    // TOTP valid, mark credential as used and launch exam
+                    ShowLoading("Launching exam interface...");
+
+                    pendingCredential.IsUsed = true;
+                    pendingCredential.AttemptsUsed++;
+                    credentialManager.UpdateCredential(pendingCredential);
+
+                    await LaunchExam(pendingCredential);
                 }
             }
             catch (Exception ex)
@@ -252,42 +280,50 @@ namespace SecureExamPlatform.UI
         {
             try
             {
-                ShowLoading("Launching exam...");
-                DisableInputs();
-                
+                // Create exam window
                 var examWindow = new ExamWindow();
-                var success = await examWindow.StartExam(credential.StudentId, credential.AccessToken, credential.ExamId);
-                
+
+                // Start the exam session
+                bool success = await examWindow.StartExam(
+                    credential.StudentId,
+                    credential.AccessToken,
+                    credential.ExamId);
+
                 if (success)
                 {
-                    // Configure exam window before showing
-                    examWindow.WindowState = WindowState.Maximized;
-                    examWindow.Closed += (s, e) => 
-                    {
-                        Application.Current.Shutdown();
-                    };
-
-                    // Show exam window and hide login window
+                    // Show exam window first
                     examWindow.Show();
+
+                    // Wait a moment for window to be fully rendered
+                    await Task.Delay(100);
+
+                    // Then hide login window
                     this.Hide();
 
-                    // Change the main window of the application to the exam window
+                    // Set exam window as main window
                     Application.Current.MainWindow = examWindow;
+
+                    // Handle exam window close
+                    examWindow.Closed += (s, e) => Application.Current.Shutdown();
                 }
                 else
                 {
-                    ShowStatus("Failed to start exam. Please try again.", true);
+                    // If exam start failed, re-enable login
+                    ShowStatus("Failed to start exam. Please try again or contact support.", true);
                     isAuthenticating = false;
                     EnableInputs();
                     HideLoading();
+                    this.Show();
                 }
             }
             catch (Exception ex)
             {
-                ShowStatus($"Failed to launch exam: {ex.Message}", true);
+                MessageBox.Show($"Failed to launch exam:\n\n{ex.Message}",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 isAuthenticating = false;
                 EnableInputs();
                 HideLoading();
+                this.Show();
             }
         }
 
@@ -301,12 +337,16 @@ namespace SecureExamPlatform.UI
                 StatusBorder.Background = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(254, 226, 226));
                 StatusBorder.BorderBrush = (System.Windows.Media.Brush)FindResource("ErrorBrush");
+                StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(127, 29, 29));
             }
             else
             {
                 StatusBorder.Background = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(219, 234, 254));
                 StatusBorder.BorderBrush = (System.Windows.Media.Brush)FindResource("PrimaryBrush");
+                StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(30, 64, 175));
             }
 
             StatusBorder.Visibility = Visibility.Visible;
@@ -335,7 +375,6 @@ namespace SecureExamPlatform.UI
         {
             if (TotpPanel.Visibility == Visibility.Visible)
             {
-                // When TOTP panel is visible, only enable TOTP input and login button
                 StudentIdTextBox.IsEnabled = false;
                 AccessTokenBox.IsEnabled = false;
                 TotpCodeTextBox.IsEnabled = true;
@@ -343,7 +382,6 @@ namespace SecureExamPlatform.UI
             }
             else
             {
-                // When on initial login screen, enable all inputs
                 StudentIdTextBox.IsEnabled = true;
                 AccessTokenBox.IsEnabled = true;
                 TotpCodeTextBox.IsEnabled = true;
@@ -362,32 +400,11 @@ namespace SecureExamPlatform.UI
             Application.Current.Shutdown();
         }
 
-        private void TextBox_GotFocus(object sender, RoutedEventArgs e)
-        {
-            if (sender is TextBox textBox && textBox.Text == "Student ID")
-                textBox.Text = "";
-        }
-
-        private void TextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (sender is TextBox textBox && string.IsNullOrWhiteSpace(textBox.Text))
-                textBox.Text = "Student ID";
-        }
-
-        private void PasswordBox_GotFocus(object sender, RoutedEventArgs e)
-        {
-            // Handle password box focus
-        }
-
-        private void PasswordBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            // Handle password box lost focus
-        }
-
-        private void SessionTokenBox_PasswordChanged(object sender, RoutedEventArgs e)
-        {
-            // Handle password changed event
-        }
+        private void TextBox_GotFocus(object sender, RoutedEventArgs e) { }
+        private void TextBox_LostFocus(object sender, RoutedEventArgs e) { }
+        private void PasswordBox_GotFocus(object sender, RoutedEventArgs e) { }
+        private void PasswordBox_LostFocus(object sender, RoutedEventArgs e) { }
+        private void SessionTokenBox_PasswordChanged(object sender, RoutedEventArgs e) { }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

@@ -1,0 +1,75 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace SecureExamPlatform.Grading
+{
+    public class GradingToolCLI
+    {
+        public static void RunGrading(string[] args)
+        {
+            Console.WriteLine("╔════════════════════════════════════════════════════════╗");
+            Console.WriteLine("║   SECURE EXAM PLATFORM - AUTOMATIC GRADING TOOL       ║");
+            Console.WriteLine("╚════════════════════════════════════════════════════════╝");
+            Console.WriteLine();
+
+            var grader = new GradingTool();
+
+            if (args.Length > 0)
+            {
+                // Command-line mode
+                string examId = args[0];
+                GradeExamCLI(grader, examId);
+            }
+            else
+            {
+                // Interactive mode
+                GradeExamInteractive(grader);
+            }
+        }
+
+        private static void GradeExamCLI(GradingTool grader, string examId)
+        {
+            Console.WriteLine($"Grading exam: {examId}");
+            var results = grader.GradeExam(examId);
+
+            if (results.Count > 0)
+            {
+                grader.GenerateReport(results);
+                grader.ExportToCSV(results);
+            }
+        }
+
+        private static void GradeExamInteractive(GradingTool grader)
+        {
+            Console.Write("Enter Exam ID to grade: ");
+            string examId = Console.ReadLine()?.Trim();
+
+            if (string.IsNullOrEmpty(examId))
+            {
+                Console.WriteLine("Error: Exam ID is required");
+                return;
+            }
+
+            Console.WriteLine($"\nGrading exam: {examId}");
+            Console.WriteLine("Please wait...\n");
+
+            var results = grader.GradeExam(examId);
+
+            if (results.Count == 0)
+            {
+                Console.WriteLine("No submissions found or error occurred.");
+                return;
+            }
+
+            Console.WriteLine($"✓ Graded {results.Count} submissions");
+            Console.WriteLine("\nGenerating reports...");
+
+            grader.GenerateReport(results);
+            grader.ExportToCSV(results);
+
+            Console.WriteLine("\n✓ Grading complete!");
+            Console.WriteLine("\nPress any key to exit...");
+            Console.ReadKey();
+        }
+    }
+}

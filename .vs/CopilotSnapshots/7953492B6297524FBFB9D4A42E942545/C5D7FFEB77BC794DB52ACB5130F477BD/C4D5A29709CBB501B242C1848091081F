@@ -1,0 +1,163 @@
+﻿using System;
+using System.Threading.Tasks;
+using Xunit;
+using System.IO;
+using System.Text.Json;
+using SecureExamPlatform.Core;
+using SecureExamPlatform.Models;
+
+namespace SecureExamPlatform.Tests.Core
+{
+    public class ExamSessionManagerTests : IDisposable
+    {
+        private readonly ExamSessionManager _sessionManager;
+        private readonly string _tempPath;
+        private readonly string _examsPath;
+
+        public ExamSessionManagerTests()
+        {
+            _tempPath = Path.Combine(Path.GetTempPath(), "SecureExamTests");
+            _examsPath = Path.Combine(_tempPath, "Exams");
+            Directory.CreateDirectory(_tempPath);
+            Directory.CreateDirectory(_examsPath);
+
+            // Create a test exam
+            var exam = new ExamContent
+            {
+                ExamId = "EXAM001",
+                Title = "Test Exam",
+                Duration = TimeSpan.FromMinutes(60),
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        Id = "Q1",
+                        Text = "Test Question",
+                        Type = QuestionType.MultipleChoice,
+                        Options = new List<string> { "A", "B", "C", "D" },
+                        CorrectAnswer = "A",
+                        Points = 1
+                    }
+                }
+            };
+
+            string examJson = JsonSerializer.Serialize(exam);
+            File.WriteAllText(Path.Combine(_examsPath, "EXAM001.json"), examJson);
+
+            Environment.SetEnvironmentVariable("EXAM_PATH", _examsPath);
+            _sessionManager = new ExamSessionManager();
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(_tempPath))
+                {
+                    Directory.Delete(_tempPath, true);
+                }
+            }
+            catch { }
+        }
+
+        [Fact]
+        public async Task StartSession_WithValidCredentials_ShouldCreateSession()
+        {
+            // Arrange
+            string studentId = "STU001";
+            string examId = "EXAM001";
+            string accessToken = "TEST-TOKEN";
+
+            // Act
+            var result = await _sessionManager.StartSession(studentId, accessToken, examId);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.ExamContent);
+            Assert.False(result.IsResumed);
+            Assert.True(_sessionManager.IsSessionActive());
+
+            var currentSession = _sessionManager.GetCurrentSession();
+            Assert.NotNull(currentSession);
+            Assert.Equal(studentId, currentSession.StudentId);
+            Assert.Equal(examId, currentSession.ExamId);
+            Assert.True(currentSession.IsActive);
+        }
+
+        [Fact]
+        public async Task EndSession_ShouldTerminateActiveSession()
+        {
+            // Arrange
+            string studentId = "STU001";
+            string examId = "EXAM001";
+            string accessToken = "TEST-TOKEN";
+            
+            // Start a session first
+            await _sessionManager.StartSession(studentId, accessToken, examId);
+
+            // Act
+            _sessionManager.EndSession(submitted: true);
+
+            // Assert
+            Assert.False(_sessionManager.IsSessionActive());
+            Assert.Null(_sessionManager.GetCurrentSession());
+
+            // Verify session events were recorded
+            var events = _sessionManager.GetSessionEvents();
+            Assert.Contains(events, e => e.EventType == "SessionEnd");
+        }
+
+        [Fact]
+        public async Task StartSession_WithExistingSession_ShouldFail()
+        {
+            // Arrange
+            string studentId = "STU001";
+            string examId = "EXAM001";
+            string accessToken = "TEST-TOKEN";
+            
+            // Start first session
+            var firstResult = await _sessionManager.StartSession(studentId, accessToken, examId);
+            Assert.True(firstResult.Success, "First session should start successfully");
+
+            // Act
+            var result = await _sessionManager.StartSession(studentId, accessToken, examId);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("already active", result.ErrorMessage.ToLower());
+        }
+
+        [Fact]
+        public async Task GetSessionEvents_ShouldTrackSessionActivity()
+        {
+            // Arrange
+            string studentId = "STU001";
+            string examId = "EXAM001";
+            string accessToken = "TEST-TOKEN";
+            
+            // Create a session and end it
+            await _sessionManager.StartSession(studentId, accessToken, examId);
+            _sessionManager.EndSession(submitted: true);
+
+            // Assert
+            var events = _sessionManager.GetSessionEvents();
+            Assert.Contains(events, e => e.EventType == "SessionEnd");
+        }
+
+        [Fact]
+        public async Task StartSession_WithInvalidExamId_ShouldFail()
+        {
+            // Arrange
+            string studentId = "STU001";
+            string examId = "NONEXISTENT";
+            string accessToken = "TEST-TOKEN";
+
+            // Act
+            var result = await _sessionManager.StartSession(studentId, accessToken, examId);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("not found", result.ErrorMessage.ToLower());
+        }
+    }
+}

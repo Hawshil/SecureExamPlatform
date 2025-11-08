@@ -1,22 +1,114 @@
 ﻿{
-  "examId": "TEST-001",
-  "title": "Test Exam",
-  "duration": 30,
-  "instructions": "This is a test exam. Answer all questions.",
+  "examId": "CSE101-MID-2025",
+  "title": "Computer Science 101 - Midterm Exam",
+  "duration": 90,
+  "instructions": "Answer all questions. MCQ questions are worth 2 marks each. Essay questions are worth 10 marks each.",
   "questions": [
     {
       "id": "q1",
-      "text": "What is 2 + 2?",
+      "text": "What is encapsulation in object-oriented programming?",
       "type": "MCQ",
-      "options": [ "2", "3", "4", "5" ],
-      "correctAnswer": "4",
-      "marks": 1
+      "options": [
+        "Hiding implementation details and exposing only necessary information",
+        "Creating multiple instances of a class",
+        "Inheriting properties from a parent class",
+        "Overloading methods with different parameters"
+      ],
+      "correctAnswer": "Hiding implementation details and exposing only necessary information",
+      "marks": 2
     },
     {
       "id": "q2",
-      "text": "Explain recursion.",
+      "text": "Which data structure uses LIFO (Last In First Out) principle?",
+      "type": "MCQ",
+      "options": [
+        "Queue",
+        "Stack",
+        "Array",
+        "Linked List"
+      ],
+      "correctAnswer": "Stack",
+      "marks": 2
+    },
+    {
+      "id": "q3",
+      "text": "What is the time complexity of binary search?",
+      "type": "MCQ",
+      "options": [
+        "O(n)",
+        "O(n²)",
+        "O(log n)",
+        "O(1)"
+      ],
+      "correctAnswer": "O(log n)",
+      "marks": 2
+    },
+    {
+      "id": "q4",
+      "text": "Which of the following is NOT a principle of Object-Oriented Programming?",
+      "type": "MCQ",
+      "options": [
+        "Encapsulation",
+        "Inheritance",
+        "Compilation",
+        "Polymorphism"
+      ],
+      "correctAnswer": "Compilation",
+      "marks": 2
+    },
+    {
+      "id": "q5",
+      "text": "Explain the concept of polymorphism in object-oriented programming. Provide examples of compile-time and runtime polymorphism.",
       "type": "Subjective",
-      "marks": 5
+      "correctAnswer": "",
+      "marks": 10
+    },
+    {
+      "id": "q6",
+      "text": "Describe the differences between abstract classes and interfaces in C#. When would you use one over the other?",
+      "type": "Subjective",
+      "correctAnswer": "",
+      "marks": 10
+    },
+    {
+      "id": "q7",
+      "text": "Write a recursive function to calculate the factorial of a number. Explain how recursion works in your implementation.",
+      "type": "Subjective",
+      "correctAnswer": "",
+      "marks": 10
+    },
+    {
+      "id": "q8",
+      "text": "What is the correct syntax for declaring a variable in C#?",
+      "type": "MCQ",
+      "options": [
+        "var x = 10;",
+        "int x = 10;",
+        "x = 10;",
+        "Both A and B are correct"
+      ],
+      "correctAnswer": "Both A and B are correct",
+      "marks": 2
+    },
+    {
+      "id": "q9",
+      "text": "Which sorting algorithm has the best average-case time complexity?",
+      "type": "MCQ",
+      "options": [
+        "Bubble Sort O(n²)",
+        "Merge Sort O(n log n)",
+        "Selection Sort O(n²)",
+        "Insertion Sort O(n²)"
+      ],
+      "correctAnswer": "Merge Sort O(n log n)",
+      "marks": 2
+    },
+    {
+      "id": "q10",
+      "text": "Explain the concept of exception handling in C#. What are try, catch, finally blocks? Provide an example of when you would use each.",
+      "type": "Subjective",
+      "correctAnswer": "",
+      "marks": 10
     }
   ]
 }
