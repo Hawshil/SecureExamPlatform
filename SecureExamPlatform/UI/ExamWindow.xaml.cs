@@ -17,33 +17,31 @@ namespace SecureExamPlatform.UI
     public partial class ExamWindow : Window, INotifyPropertyChanged
     {
         private readonly ExamSessionManager _sessionManager;
-        private readonly EnhancedProcessMonitor _processMonitor;
-        private readonly ScreenshotPrevention _screenshotPrevention;
-        private readonly ScreenCaptureBlocker _captureBlocker;
+        private EnhancedProcessMonitor _processMonitor;
+        private ScreenshotPrevention _screenshotPrevention;
+        private ScreenCaptureBlocker _captureBlocker;
 
         private ExamContent _examContent;
         private Dictionary<string, string> _studentAnswers;
         private int _currentQuestionIndex;
         private Question _currentQuestion;
 
-        private readonly DispatcherTimer _examTimer;
-        private readonly DispatcherTimer _autoSaveTimer;
+        private DispatcherTimer _examTimer;
+        private DispatcherTimer _autoSaveTimer;
+        private DispatcherTimer _autoSaveDebounceTimer;
         private TimeSpan _remainingTime;
         private bool isSubmitted = false;
-        private bool _isInitialized = false;
 
-        // MCQ Support
         private RadioButton[] _mcqOptions;
+        private readonly HashSet<string> _attemptedQuestions = new HashSet<string>();
+        private readonly HashSet<string> _flaggedQuestions = new HashSet<string>();
 
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
         [DllImport("user32.dll")]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
         [DllImport("user32.dll")]
-        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
-            int X, int Y, int cx, int cy, uint uFlags);
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
         private const int GWL_STYLE = -16;
         private const int WS_SYSMENU = 0x80000;
@@ -53,33 +51,34 @@ namespace SecureExamPlatform.UI
 
         public ExamWindow()
         {
-            InitializeComponent();
-            DataContext = this;
+            try
+            {
+                InitializeComponent();
+                DataContext = this;
 
-            _sessionManager = new ExamSessionManager();
-            _processMonitor = new EnhancedProcessMonitor();
-            _screenshotPrevention = new ScreenshotPrevention();
-            _captureBlocker = new ScreenCaptureBlocker();
+                _sessionManager = new ExamSessionManager();
+                _studentAnswers = new Dictionary<string, string>();
 
-            _studentAnswers = new Dictionary<string, string>();
+                _examTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                _examTimer.Tick += UpdateExamTimer;
 
-            _examTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _examTimer.Tick += UpdateExamTimer;
+                _autoSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+                _autoSaveTimer.Tick += AutoSaveAnswers;
 
-            _autoSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-            _autoSaveTimer.Tick += AutoSaveAnswers;
-
-            this.Closing += Window_Closing;
-            this.Loaded += Window_Loaded;
+                this.Closing += Window_Closing;
+                this.Loaded += Window_Loaded;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to initialize exam window: {ex.Message}", "Initialization Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                throw;
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            if (_isInitialized)
-            {
-                ConfigureKioskMode();
-                StartSecurityMonitoring();
-            }
+            // Initialization happens in StartExam to prevent race conditions
         }
 
         private void Window_Closing(object sender, CancelEventArgs e)
@@ -87,8 +86,7 @@ namespace SecureExamPlatform.UI
             if (_examContent != null && !isSubmitted)
             {
                 var result = MessageBox.Show(
-                    "Are you sure you want to exit? This will end your exam session.\n\n" +
-                    "Your answers have been auto-saved but the exam will be marked as incomplete.",
+                    "Are you sure you want to exit? This will end your exam session.\n\nYour answers have been auto-saved but the exam will be marked as incomplete.",
                     "Confirm Exit",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
@@ -111,73 +109,6 @@ namespace SecureExamPlatform.UI
             }
         }
 
-        private void ConfigureKioskMode()
-        {
-            try
-            {
-                var helper = new System.Windows.Interop.WindowInteropHelper(this);
-                int style = GetWindowLong(helper.Handle, GWL_STYLE);
-                SetWindowLong(helper.Handle, GWL_STYLE, style & ~WS_SYSMENU);
-                SetWindowPos(helper.Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-
-                PreviewKeyDown += OnPreviewKeyDown;
-                _screenshotPrevention.ProtectWindow(helper.Handle);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Kiosk mode config warning: {ex.Message}");
-            }
-        }
-
-        private void StartSecurityMonitoring()
-        {
-            try
-            {
-                _processMonitor.StartMonitoring();
-                _captureBlocker.StartBlocking();
-                _screenshotPrevention.StartProtection();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Security monitoring warning: {ex.Message}");
-            }
-        }
-
-        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (Keyboard.Modifiers == ModifierKeys.Alt &&
-                (e.Key == Key.Tab || e.Key == Key.F4 || e.Key == Key.Escape))
-            {
-                e.Handled = true;
-                LogSecurityEvent("Blocked Alt key combination");
-                return;
-            }
-
-            if (Keyboard.Modifiers == ModifierKeys.Windows ||
-                e.Key == Key.LWin || e.Key == Key.RWin)
-            {
-                e.Handled = true;
-                LogSecurityEvent("Blocked Windows key");
-                return;
-            }
-
-            if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt) &&
-                e.Key == Key.Delete)
-            {
-                e.Handled = true;
-                LogSecurityEvent("Blocked Ctrl+Alt+Del");
-                return;
-            }
-
-            if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) &&
-                e.Key == Key.Escape)
-            {
-                e.Handled = true;
-                LogSecurityEvent("Blocked Task Manager shortcut");
-                return;
-            }
-        }
-
         public async Task<bool> StartExam(string studentId, string sessionToken, string examId)
         {
             try
@@ -186,15 +117,13 @@ namespace SecureExamPlatform.UI
 
                 if (!result.Success)
                 {
-                    MessageBox.Show(result.ErrorMessage, "Login Failed",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(result.ErrorMessage, "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                     return false;
                 }
 
                 _examContent = result.ExamContent;
                 _currentQuestionIndex = 0;
                 _remainingTime = _examContent.Duration;
-                _isInitialized = true;
 
                 Questions.Clear();
                 for (int i = 0; i < _examContent.Questions.Count; i++)
@@ -206,109 +135,166 @@ namespace SecureExamPlatform.UI
                     });
                 }
 
-                if (_examContent.Questions.Any())
-                {
-                    DisplayQuestion(_examContent.Questions[0]);
-                }
-
-                _examTimer.Start();
-                _autoSaveTimer.Start();
-
                 StudentId = studentId;
                 QuestionProgress = $"Question {_currentQuestionIndex + 1} of {_examContent.Questions.Count}";
                 OnPropertyChanged(nameof(ExamTitle));
                 OnPropertyChanged(nameof(QuestionProgress));
 
+                // Display first question
+                if (_examContent.Questions.Any())
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        DisplayQuestion(_examContent.Questions[0]);
+                    });
+                }
+
+                // Start timers
+                _examTimer.Start();
+                _autoSaveTimer.Start();
+
+                // Initialize security AFTER UI is ready
+                await Task.Delay(500); // Give UI time to settle
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    ConfigureKioskMode();
+                    StartSecurityMonitoring();
+                });
+
                 return true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to start exam: {ex.Message}", "Error",
+                MessageBox.Show($"Failed to start exam: {ex.Message}\n\n{ex.StackTrace}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
         }
 
+        private void ConfigureKioskMode()
+        {
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(this);
+                if (helper.Handle == IntPtr.Zero) return;
+
+                int style = GetWindowLong(helper.Handle, GWL_STYLE);
+                SetWindowLong(helper.Handle, GWL_STYLE, style & ~WS_SYSMENU);
+                SetWindowPos(helper.Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
+                PreviewKeyDown += OnPreviewKeyDown;
+
+                if (_screenshotPrevention != null)
+                {
+                    _screenshotPrevention.ProtectWindow(helper.Handle);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Kiosk mode warning: {ex.Message}");
+            }
+        }
+
+        private void StartSecurityMonitoring()
+        {
+            try
+            {
+                _processMonitor = new EnhancedProcessMonitor();
+                _screenshotPrevention = new ScreenshotPrevention();
+                _captureBlocker = new ScreenCaptureBlocker();
+
+                _processMonitor.StartMonitoring();
+                _captureBlocker.StartBlocking();
+                _screenshotPrevention.StartProtection();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Security warning: {ex.Message}");
+            }
+        }
+
+        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (Keyboard.Modifiers == ModifierKeys.Alt && (e.Key == Key.Tab || e.Key == Key.F4 || e.Key == Key.Escape))
+            {
+                e.Handled = true;
+                return;
+            }
+            if (Keyboard.Modifiers == ModifierKeys.Windows || e.Key == Key.LWin || e.Key == Key.RWin)
+            {
+                e.Handled = true;
+                return;
+            }
+        }
+
         private void DisplayQuestion(Question question)
         {
-            CurrentQuestionNumber = _currentQuestionIndex + 1;
-            _currentQuestion = question;
-
-            OnPropertyChanged(nameof(CurrentQuestionText));
-
-            // Clear previous MCQ options
-            var answerArea = FindName("AnswerTextBox") as TextBox;
-            var parent = answerArea?.Parent as Grid;
-
-            if (parent != null && _mcqOptions != null)
+            try
             {
-                foreach (var option in _mcqOptions)
+                CurrentQuestionNumber = _currentQuestionIndex + 1;
+                _currentQuestion = question;
+                OnPropertyChanged(nameof(CurrentQuestionText));
+
+                var answerArea = FindName("AnswerTextBox") as TextBox;
+                if (answerArea == null) return;
+
+                var parent = answerArea.Parent as Grid;
+                if (parent != null && _mcqOptions != null)
                 {
-                    parent.Children.Remove(option);
-                }
-            }
-
-            // Handle different question types
-            if (question.Type == QuestionType.MultipleChoice && question.Options != null && question.Options.Count > 0)
-            {
-                // Hide text box for MCQ
-                if (answerArea != null)
-                    answerArea.Visibility = Visibility.Collapsed;
-
-                // Create MCQ options
-                var optionsPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-                _mcqOptions = new RadioButton[question.Options.Count];
-
-                for (int i = 0; i < question.Options.Count; i++)
-                {
-                    var radio = new RadioButton
+                    foreach (var option in _mcqOptions)
                     {
-                        Content = question.Options[i],
-                        GroupName = "MCQOptions",
-                        Margin = new Thickness(0, 8, 0, 8),
-                        FontSize = 14,
-                        Foreground = System.Windows.Media.Brushes.White,
-                        Tag = i
-                    };
-                    radio.Checked += McqOption_Checked;
-                    _mcqOptions[i] = radio;
-                    optionsPanel.Children.Add(radio);
-                }
-
-                // Add options panel to parent
-                if (parent != null)
-                {
-                    Grid.SetRow(optionsPanel, 1);
-                    parent.Children.Add(optionsPanel);
-                }
-
-                // Load saved answer
-                if (_studentAnswers.ContainsKey(question.Id))
-                {
-                    string savedAnswer = _studentAnswers[question.Id];
-                    if (int.TryParse(savedAnswer, out int selectedIndex) &&
-                        selectedIndex >= 0 && selectedIndex < _mcqOptions.Length)
-                    {
-                        _mcqOptions[selectedIndex].IsChecked = true;
+                        parent.Children.Remove(option);
                     }
                 }
-            }
-            else
-            {
-                // Show text box for essay/subjective questions
-                if (answerArea != null)
+
+                if (question.Type == QuestionType.MultipleChoice && question.Options != null && question.Options.Count > 0)
                 {
-                    answerArea.Visibility = Visibility.Visible;
+                    answerArea.Visibility = Visibility.Collapsed;
+
+                    var optionsPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+                    _mcqOptions = new RadioButton[question.Options.Count];
+
+                    for (int i = 0; i < question.Options.Count; i++)
+                    {
+                        var radio = new RadioButton
+                        {
+                            Content = question.Options[i],
+                            GroupName = "MCQOptions",
+                            Margin = new Thickness(0, 8, 0, 8),
+                            FontSize = 14,
+                            Foreground = System.Windows.Media.Brushes.White,
+                            Tag = i
+                        };
+                        radio.Checked += McqOption_Checked;
+                        _mcqOptions[i] = radio;
+                        optionsPanel.Children.Add(radio);
+                    }
+
+                    if (parent != null)
+                    {
+                        Grid.SetRow(optionsPanel, 1);
+                        parent.Children.Add(optionsPanel);
+                    }
 
                     if (_studentAnswers.ContainsKey(question.Id))
                     {
-                        answerArea.Text = _studentAnswers[question.Id];
-                    }
-                    else
-                    {
-                        answerArea.Text = string.Empty;
+                        string savedAnswer = _studentAnswers[question.Id];
+                        if (int.TryParse(savedAnswer, out int selectedIndex) &&
+                            selectedIndex >= 0 && selectedIndex < _mcqOptions.Length)
+                        {
+                            _mcqOptions[selectedIndex].IsChecked = true;
+                        }
                     }
                 }
+                else
+                {
+                    answerArea.Visibility = Visibility.Visible;
+                    answerArea.Text = _studentAnswers.ContainsKey(question.Id) ? _studentAnswers[question.Id] : string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error displaying question: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -327,9 +313,7 @@ namespace SecureExamPlatform.UI
         private void SaveCurrentAnswer()
         {
             if (_currentQuestion == null) return;
-
             string answer = GetCurrentAnswer();
-
             if (!string.IsNullOrEmpty(answer))
             {
                 _studentAnswers[_currentQuestion.Id] = answer;
@@ -384,9 +368,7 @@ namespace SecureExamPlatform.UI
         private async void OnSubmitExam()
         {
             var result = MessageBox.Show(
-                $"Are you sure you want to submit your exam?\n\n" +
-                $"Questions Answered: {_studentAnswers.Count} / {_examContent.Questions.Count}\n\n" +
-                $"This action cannot be undone.",
+                $"Are you sure you want to submit your exam?\n\nQuestions Answered: {_studentAnswers.Count} / {_examContent.Questions.Count}\n\nThis action cannot be undone.",
                 "Confirm Submission",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -412,12 +394,7 @@ namespace SecureExamPlatform.UI
             _sessionManager.EndSession(true);
 
             MessageBox.Show(
-                "✓ Exam Submitted Successfully!\n\n" +
-                $"Student ID: {submission.StudentId}\n" +
-                $"Exam: {_examContent.Title}\n" +
-                $"Submission Time: {submission.SubmissionTime:yyyy-MM-dd HH:mm:ss}\n" +
-                $"Time Spent: {submission.TimeSpent.TotalMinutes:F0} minutes\n" +
-                $"Questions Answered: {submission.Answers.Count}/{_examContent.Questions.Count}",
+                $"✓ Exam Submitted Successfully!\n\nStudent ID: {submission.StudentId}\nSubmission Time: {submission.SubmissionTime:yyyy-MM-dd HH:mm:ss}\nTime Spent: {submission.TimeSpent.TotalMinutes:F0} minutes\nQuestions Answered: {submission.Answers.Count}/{_examContent.Questions.Count}",
                 "Exam Submitted",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -430,51 +407,36 @@ namespace SecureExamPlatform.UI
         {
             await Task.Run(() =>
             {
-                var json = System.Text.Json.JsonSerializer.Serialize(submission, new System.Text.Json.JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
+                var json = System.Text.Json.JsonSerializer.Serialize(submission, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                 var filename = $"submission_{submission.StudentId}_{submission.ExamId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
                 string submissionPath = System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "SecureExam",
-                    "Submissions",
-                    filename);
-
+                    "SecureExam", "Submissions", filename);
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(submissionPath));
                 System.IO.File.WriteAllText(submissionPath, json);
-
-                Console.WriteLine($"Submission saved: {submissionPath}");
             });
         }
 
         private void UpdateExamTimer(object sender, EventArgs e)
         {
             _remainingTime = _remainingTime.Subtract(TimeSpan.FromSeconds(1));
-
             if (_remainingTime <= TimeSpan.Zero)
             {
                 _examTimer.Stop();
-                MessageBox.Show("⏰ Time's Up!\n\nThe exam will now be submitted automatically.",
-                    "Time's Up", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("⏰ Time's Up!\n\nThe exam will now be submitted automatically.", "Time's Up", MessageBoxButton.OK, MessageBoxImage.Information);
                 OnSubmitExam();
                 return;
             }
-
             OnPropertyChanged(nameof(RemainingTimeDisplay));
-
             if (_remainingTime.TotalMinutes == 5 && _remainingTime.Seconds == 0)
             {
-                MessageBox.Show("⚠ You have 5 minutes remaining!", "Time Warning",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("⚠ You have 5 minutes remaining!", "Time Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
         private void AutoSaveAnswers(object sender, EventArgs e)
         {
             SaveCurrentAnswer();
-            LogEvent("Auto-saved answers");
         }
 
         private void LogSecurityEvent(string message)
@@ -482,25 +444,19 @@ namespace SecureExamPlatform.UI
             Console.WriteLine($"[SECURITY] {message}");
         }
 
-        private void LogEvent(string message)
-        {
-            Console.WriteLine($"[EXAM] {message}");
-        }
-
         private void CleanupAndExit()
         {
             try
             {
+                MessageBox.Show("Exit ho gaya", "Debug", MessageBoxButton.OK, MessageBoxImage.Warning);
+
                 _processMonitor?.StopMonitoring();
                 _screenshotPrevention?.StopProtection();
                 _captureBlocker?.StopBlocking();
                 _processMonitor?.Dispose();
                 _screenshotPrevention?.Dispose();
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Cleanup warning: {ex.Message}");
-            }
+            catch { }
         }
 
         private void PreviousButton_Click(object sender, RoutedEventArgs e) => OnPreviousQuestion();
@@ -512,10 +468,7 @@ namespace SecureExamPlatform.UI
             if (sender is Button button && button.Tag is string questionId)
             {
                 var questionIndex = _examContent.Questions.FindIndex(q => q.Id == questionId);
-                if (questionIndex >= 0)
-                {
-                    NavigateToQuestion(questionIndex);
-                }
+                if (questionIndex >= 0) NavigateToQuestion(questionIndex);
             }
         }
 
@@ -526,12 +479,10 @@ namespace SecureExamPlatform.UI
                 if (_flaggedQuestions.Contains(_currentQuestion.Id))
                 {
                     _flaggedQuestions.Remove(_currentQuestion.Id);
-                    ShowNotification("Question unflagged");
                 }
                 else
                 {
                     _flaggedQuestions.Add(_currentQuestion.Id);
-                    ShowNotification("Question flagged for review");
                 }
                 UpdateQuestionListUI();
             }
@@ -558,26 +509,10 @@ namespace SecureExamPlatform.UI
             }
         }
 
-        private void DismissWarning_Click(object sender, RoutedEventArgs e) => HideWarning();
-
-        private void ShowWarning(string message)
+        private void DismissWarning_Click(object sender, RoutedEventArgs e)
         {
-            Dispatcher.Invoke(() =>
-            {
-                var warningMsg = FindName("WarningMessage") as TextBlock;
-                var warningOverlay = FindName("WarningOverlay") as Border;
-                if (warningMsg != null) warningMsg.Text = message;
-                if (warningOverlay != null) warningOverlay.Visibility = Visibility.Visible;
-            });
-        }
-
-        private void HideWarning()
-        {
-            Dispatcher.Invoke(() =>
-            {
-                var warningOverlay = FindName("WarningOverlay") as Border;
-                if (warningOverlay != null) warningOverlay.Visibility = Visibility.Collapsed;
-            });
+            var warningOverlay = FindName("WarningOverlay") as Border;
+            if (warningOverlay != null) warningOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void ShowAutoSaveIndicator()
@@ -599,8 +534,6 @@ namespace SecureExamPlatform.UI
             });
         }
 
-        private void ShowNotification(string message) => LogEvent($"NOTIFICATION: {message}");
-
         private void UpdateQuestionListUI()
         {
             Dispatcher.Invoke(() =>
@@ -609,14 +542,13 @@ namespace SecureExamPlatform.UI
                 for (int i = 0; i < _examContent.Questions.Count; i++)
                 {
                     var q = _examContent.Questions[i];
-                    var vm = new QuestionViewModel
+                    qList.Add(new QuestionViewModel
                     {
                         Id = q.Id,
                         Number = i + 1,
                         StatusIcon = _flaggedQuestions.Contains(q.Id) ? "🚩" : "",
                         StatusColor = _attemptedQuestions.Contains(q.Id) ? "#2e7d32" : "#444"
-                    };
-                    qList.Add(vm);
+                    });
                 }
                 this.Questions = qList;
                 OnPropertyChanged(nameof(Questions));
@@ -624,7 +556,6 @@ namespace SecureExamPlatform.UI
         }
 
         public string ExamTitle => _examContent?.Title ?? "Loading Exam...";
-
         private string _studentId = "N/A";
         public string StudentId
         {
@@ -643,21 +574,6 @@ namespace SecureExamPlatform.UI
         public string RemainingTimeDisplay => $"{_remainingTime.Hours:D2}:{_remainingTime.Minutes:D2}:{_remainingTime.Seconds:D2}";
         public List<QuestionViewModel> Questions { get; set; } = new List<QuestionViewModel>();
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        public class QuestionViewModel
-        {
-            public string Id { get; set; } = "";
-            public int Number { get; set; }
-            public string StatusColor { get; set; } = "#444";
-            public string StatusIcon { get; set; } = "";
-        }
-
-        private readonly HashSet<string> _attemptedQuestions = new HashSet<string>();
-        private readonly HashSet<string> _flaggedQuestions = new HashSet<string>();
-        private DispatcherTimer _autoSaveDebounceTimer;
-
         private int _currentQuestionNumber = 1;
         public int CurrentQuestionNumber
         {
@@ -669,26 +585,15 @@ namespace SecureExamPlatform.UI
             }
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+        public class QuestionViewModel
         {
-            if (_examContent != null && !isSubmitted)
-            {
-                var result = MessageBox.Show(
-                    "Are you sure you want to exit? This will end your exam session.",
-                    "Confirm Exit",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (result == MessageBoxResult.No)
-                {
-                    e.Cancel = true;
-                    return;
-                }
-
-                _sessionManager.EndSession(false);
-            }
-
-            base.OnClosing(e);
+            public string Id { get; set; } = "";
+            public int Number { get; set; }
+            public string StatusColor { get; set; } = "#444";
+            public string StatusIcon { get; set; } = "";
         }
     }
 }

@@ -1,38 +1,129 @@
 ﻿using Microsoft.Win32;
 using SecureExamPlatform.Core;
 using SecureExamPlatform.Models;
-using SecureExamPlatform.Security;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
-using System.Windows.Threading;
+using System.Text;
 
 namespace SecureExamPlatform.UI
 {
     public partial class FacultyDashboard : Window
     {
-        private CredentialManager credentialManager;
-        private string selectedFilePath;
-        private DispatcherTimer totpUpdateTimer;
+        private const string FACULTY_PASSWORD = "admin123"; // Change this in production
+        private SimpleCredentialManager credentialManager;
         private string examsDirectory;
         private List<ExamContent> availableExams;
+        private List<StudentCredentialInfo> currentBatchCredentials;
+
+        public class StudentCredentialInfo
+        {
+            public string StudentId { get; set; }
+            public string LoginCode { get; set; }
+            public string ExamId { get; set; }
+        }
 
         public FacultyDashboard()
         {
             InitializeComponent();
-            credentialManager = new CredentialManager();
-            availableExams = new List<ExamContent>();
 
-            // Setup exams directory
+            // Authenticate on load
+            if (!AuthenticateFaculty())
+            {
+                this.Close();
+                return;
+            }
+
+            credentialManager = new SimpleCredentialManager();
+            availableExams = new List<ExamContent>();
+            currentBatchCredentials = new List<StudentCredentialInfo>();
+
             string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
             examsDirectory = Path.Combine(appDirectory, "Exams");
             Directory.CreateDirectory(examsDirectory);
 
             LoadExams();
-            SetupTotpTimer();
+        }
+
+        private bool AuthenticateFaculty()
+        {
+            var passwordDialog = new Window
+            {
+                Title = "Faculty Authentication",
+                Height = 200,
+                Width = 400,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = System.Windows.Media.Brushes.White,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stack = new System.Windows.Controls.StackPanel
+            {
+                Margin = new Thickness(20),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var title = new System.Windows.Controls.TextBlock
+            {
+                Text = "Enter Faculty Password",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 20),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var passwordBox = new System.Windows.Controls.PasswordBox
+            {
+                Height = 40,
+                FontSize = 14,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            var loginButton = new System.Windows.Controls.Button
+            {
+                Content = "Login",
+                Height = 40,
+                FontSize = 14
+            };
+
+            bool authenticated = false;
+
+            loginButton.Click += (s, e) =>
+            {
+                if (passwordBox.Password == FACULTY_PASSWORD)
+                {
+                    authenticated = true;
+                    passwordDialog.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Incorrect password. Please try again.", "Authentication Failed",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    passwordBox.Clear();
+                    passwordBox.Focus();
+                }
+            };
+
+            passwordBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Enter)
+                {
+                    loginButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                }
+            };
+
+            stack.Children.Add(title);
+            stack.Children.Add(passwordBox);
+            stack.Children.Add(loginButton);
+            passwordDialog.Content = stack;
+
+            passwordBox.Focus();
+            passwordDialog.ShowDialog();
+
+            return authenticated;
         }
 
         private void LoadExams()
@@ -41,13 +132,12 @@ namespace SecureExamPlatform.UI
             {
                 availableExams.Clear();
                 ExamSelector.Items.Clear();
-                ActiveExamsList.Items.Clear();
 
                 var examFiles = Directory.GetFiles(examsDirectory, "*.json");
 
                 if (examFiles.Length == 0)
                 {
-                    ExamSelector.Items.Add("No exams available - Import exams first");
+                    ExamSelector.Items.Add("No exams available - Upload an exam first");
                     ExamSelector.IsEnabled = false;
                     return;
                 }
@@ -66,14 +156,29 @@ namespace SecureExamPlatform.UI
 
                         if (exam != null)
                         {
+                            // Fix duration if needed
+                            if (exam.Duration.TotalMinutes == 0)
+                            {
+                                using (JsonDocument doc = JsonDocument.Parse(json))
+                                {
+                                    if (doc.RootElement.TryGetProperty("duration", out JsonElement durationElement))
+                                    {
+                                        if (durationElement.ValueKind == JsonValueKind.Number)
+                                        {
+                                            exam.Duration = TimeSpan.FromMinutes(durationElement.GetInt32());
+                                        }
+                                    }
+                                }
+                            }
+
                             availableExams.Add(exam);
                             ExamSelector.Items.Add($"{exam.ExamId} - {exam.Title}");
-                            ActiveExamsList.Items.Add($"📄 {exam.Title}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error loading exam {file}: {ex.Message}");
+                        MessageBox.Show($"Error loading exam {Path.GetFileName(file)}: {ex.Message}", "Warning",
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
 
@@ -81,6 +186,8 @@ namespace SecureExamPlatform.UI
                 {
                     ExamSelector.SelectedIndex = 0;
                 }
+
+                UpdateStatus($"✓ Loaded {availableExams.Count} exam(s)", false);
             }
             catch (Exception ex)
             {
@@ -89,56 +196,102 @@ namespace SecureExamPlatform.UI
             }
         }
 
-        private void SetupTotpTimer()
+        private void UploadExam_Click(object sender, RoutedEventArgs e)
         {
-            totpUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            totpUpdateTimer.Tick += (s, e) =>
+            try
             {
-                if (CredentialsDisplay.Visibility == Visibility.Visible &&
-                    !string.IsNullOrEmpty(GenTotpSecret.Text))
+                OpenFileDialog dialog = new OpenFileDialog
                 {
-                    try
-                    {
-                        GenCurrentTotp.Text = TotpManager.GenerateCode(GenTotpSecret.Text);
-                    }
-                    catch { }
+                    Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                    Title = "Select Exam JSON File"
+                };
+
+                if (dialog.ShowDialog() != true) return;
+
+                string json = File.ReadAllText(dialog.FileName);
+                var exam = JsonSerializer.Deserialize<ExamContent>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (exam == null)
+                {
+                    throw new Exception("Failed to parse JSON file");
                 }
-            };
+
+                // Validate
+                if (string.IsNullOrEmpty(exam.ExamId))
+                    throw new Exception("Exam must have an 'examId'");
+                if (string.IsNullOrEmpty(exam.Title))
+                    throw new Exception("Exam must have a 'title'");
+                if (exam.Questions == null || exam.Questions.Count == 0)
+                    throw new Exception("Exam must have at least one question");
+
+                // Handle duration
+                if (exam.Duration.TotalMinutes == 0)
+                {
+                    using (JsonDocument doc = JsonDocument.Parse(json))
+                    {
+                        if (doc.RootElement.TryGetProperty("duration", out JsonElement durationElement))
+                        {
+                            if (durationElement.ValueKind == JsonValueKind.Number)
+                            {
+                                exam.Duration = TimeSpan.FromMinutes(durationElement.GetInt32());
+                            }
+                        }
+                    }
+                }
+
+                if (exam.Duration.TotalMinutes == 0)
+                    throw new Exception("Exam must have a valid duration");
+
+                // Validate questions
+                foreach (var q in exam.Questions)
+                {
+                    if (string.IsNullOrEmpty(q.Id))
+                        throw new Exception($"All questions must have an 'id'");
+                    if (string.IsNullOrEmpty(q.Text))
+                        throw new Exception($"Question {q.Id} must have 'text'");
+                    if (q.Type == 0)
+                        q.Type = QuestionType.Essay;
+                    if (q.Type == QuestionType.MultipleChoice && (q.Options == null || q.Options.Count < 2))
+                        throw new Exception($"MCQ Question {q.Id} must have at least 2 options");
+                }
+
+                // Save
+                string safeExamId = string.Join("_", exam.ExamId.Split(Path.GetInvalidFileNameChars()));
+                string outputPath = Path.Combine(examsDirectory, $"{safeExamId}.json");
+
+                string formattedJson = JsonSerializer.Serialize(exam, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                File.WriteAllText(outputPath, formattedJson);
+
+                LoadExams();
+
+                MessageBox.Show(
+                    $"✓ Exam uploaded successfully!\n\n" +
+                    $"Exam: {exam.Title}\n" +
+                    $"ID: {exam.ExamId}\n" +
+                    $"Questions: {exam.Questions.Count}\n" +
+                    $"Duration: {exam.Duration.TotalMinutes} minutes",
+                    "Upload Successful",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Upload failed:\n\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
-        private void CreateExam_Click(object sender, RoutedEventArgs e)
+        private void GenerateSingleCode_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "To create an exam, prepare a JSON file with the following structure:\n\n" +
-                "{\n" +
-                "  \"examId\": \"EXAM-001\",\n" +
-                "  \"title\": \"Your Exam Title\",\n" +
-                "  \"duration\": 90,\n" +
-                "  \"questions\": [\n" +
-                "    {\n" +
-                "      \"id\": \"q1\",\n" +
-                "      \"text\": \"Question text?\",\n" +
-                "      \"type\": \"MCQ\",\n" +
-                "      \"options\": [\"A\", \"B\", \"C\", \"D\"],\n" +
-                "      \"correctAnswer\": \"A\",\n" +
-                "      \"marks\": 2\n" +
-                "    }\n" +
-                "  ]\n" +
-                "}\n\n" +
-                "Then use 'Import Questions' to upload it.",
-                "Create Exam",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
-
-        private void ImportQuestions_Click(object sender, RoutedEventArgs e)
-        {
-            MainTabControl.SelectedItem = ImportTab;
-        }
-
-        private void GenerateSimpleCredentials_Click(object sender, RoutedEventArgs e)
-        {
-            string studentId = StudentIdInput.Text.Trim();
+            string studentId = SingleStudentIdBox.Text.Trim();
             string selectedExam = ExamSelector.SelectedItem?.ToString();
 
             if (string.IsNullOrEmpty(studentId))
@@ -150,7 +303,7 @@ namespace SecureExamPlatform.UI
 
             if (string.IsNullOrEmpty(selectedExam) || selectedExam.Contains("No exams"))
             {
-                MessageBox.Show("Please import an exam first", "Validation Error",
+                MessageBox.Show("Please upload an exam first", "Validation Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -158,23 +311,23 @@ namespace SecureExamPlatform.UI
             try
             {
                 string examId = selectedExam.Split('-')[0].Trim();
-
-                var simpleCredManager = new Core.SimpleCredentialManager();
-                var credential = simpleCredManager.GenerateCredential(studentId, examId, allowedLogins: 1);
+                var credential = credentialManager.GenerateCredential(studentId, examId, allowedLogins: 1);
 
                 MessageBox.Show(
                     $"✓ Login Code Generated!\n\n" +
+                    $"━━━━━━━━━━━━━━━━━━━━━━\n" +
                     $"Student ID: {credential.StudentId}\n" +
                     $"Login Code: {credential.LoginCode}\n" +
                     $"Exam: {examId}\n" +
-                    $"Login Attempts Left: {credential.RemainingLogins}\n\n" +
-                    $"Give this code to the student. They will enter it along with their Student ID to start the exam.\n\n" +
-                    $"NOTE: This is a single-use code. After the student logs in once, the code expires.",
+                    $"━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                    $"Give this code to the student.\n" +
+                    $"This is a single-use code that expires after first login.",
                     "Success",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
-                StudentIdInput.Clear();
+                SingleStudentIdBox.Clear();
+                UpdateStatus($"✓ Code generated for {studentId}", false);
             }
             catch (Exception ex)
             {
@@ -183,380 +336,156 @@ namespace SecureExamPlatform.UI
             }
         }
 
-        private void ViewStudents_Click(object sender, RoutedEventArgs e)
+        private void GenerateBatchCodes_Click(object sender, RoutedEventArgs e)
         {
-            var credentials = credentialManager.GetAllCredentials();
-
-            if (credentials.Count == 0)
-            {
-                MessageBox.Show(
-                    "No credentials generated yet.\n\n" +
-                    "Use the 'Generate Credentials' tab to create credentials for students.",
-                    "No Credentials",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return;
-            }
-
-            string message = $"Total Credentials: {credentials.Count}\n" +
-                           $"Active: {credentials.Count(c => !c.IsUsed)}\n" +
-                           $"Used: {credentials.Count(c => c.IsUsed)}\n\n";
-
-            message += "Recent Credentials:\n";
-            message += new string('-', 50) + "\n";
-
-            foreach (var cred in credentials.OrderByDescending(c => c.CreatedAt).Take(10))
-            {
-                string status = cred.IsUsed ? "✓ Used" : "⏳ Active";
-                string expired = DateTime.UtcNow > cred.ExpiresAt ? " (EXPIRED)" : "";
-                message += $"{cred.StudentId} - {cred.ExamId} - {status}{expired}\n";
-            }
-
-            MessageBox.Show(message, "Student Credentials", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private void SelectFile_Click(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog dialog = new OpenFileDialog
-            {
-                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
-                Title = "Select Exam JSON File",
-                Multiselect = false
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                selectedFilePath = dialog.FileName;
-                SelectedFileText.Text = $"✓ Selected: {Path.GetFileName(selectedFilePath)}";
-                SelectedFileText.Foreground = (System.Windows.Media.Brush)FindResource("SuccessBrush");
-                ImportBtn.IsEnabled = true;
-            }
-        }
-
-        private void Import_Click(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(selectedFilePath) || !File.Exists(selectedFilePath))
-            {
-                ImportStatus.Text = "✗ Please select a valid file first";
-                ImportStatus.Foreground = (System.Windows.Media.Brush)FindResource("ErrorBrush");
-                return;
-            }
-
-            try
-            {
-                // Read and validate JSON
-                string json = File.ReadAllText(selectedFilePath);
-                var examContent = JsonSerializer.Deserialize<ExamContent>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (examContent == null)
-                {
-                    throw new Exception("Invalid JSON format");
-                }
-
-                // Validate required fields
-                if (string.IsNullOrEmpty(examContent.ExamId))
-                {
-                    throw new Exception("Exam must have an 'examId' field");
-                }
-
-                if (string.IsNullOrEmpty(examContent.Title))
-                {
-                    throw new Exception("Exam must have a 'title' field");
-                }
-
-                if (examContent.Questions == null || examContent.Questions.Count == 0)
-                {
-                    throw new Exception("Exam must have at least one question");
-                }
-
-                // Handle duration (might be int in JSON)
-                if (examContent.Duration.TotalMinutes == 0)
-                {
-                    using (JsonDocument doc = JsonDocument.Parse(json))
-                    {
-                        if (doc.RootElement.TryGetProperty("duration", out JsonElement durationElement))
-                        {
-                            if (durationElement.ValueKind == JsonValueKind.Number)
-                            {
-                                int minutes = durationElement.GetInt32();
-                                examContent.Duration = TimeSpan.FromMinutes(minutes);
-                            }
-                        }
-                    }
-                }
-
-                if (examContent.Duration.TotalMinutes == 0)
-                {
-                    throw new Exception("Exam must have a valid duration (in minutes)");
-                }
-
-                // Validate questions
-                int questionNumber = 1;
-                foreach (var question in examContent.Questions)
-                {
-                    if (string.IsNullOrEmpty(question.Id))
-                    {
-                        throw new Exception($"Question {questionNumber} must have an 'id' field");
-                    }
-
-                    if (string.IsNullOrEmpty(question.Text))
-                    {
-                        throw new Exception($"Question {question.Id} must have a 'text' field");
-                    }
-
-                    // Set default question type if not specified
-                    if (question.Type == 0)
-                    {
-                        question.Type = QuestionType.Essay;
-                    }
-
-                    // Validate MCQ questions have options
-                    if (question.Type == QuestionType.MultipleChoice)
-                    {
-                        if (question.Options == null || question.Options.Count < 2)
-                        {
-                            throw new Exception($"MCQ Question {question.Id} must have at least 2 options");
-                        }
-                    }
-
-                    questionNumber++;
-                }
-
-                // Save to exams directory with normalized filename
-                string safeExamId = string.Join("_", examContent.ExamId.Split(Path.GetInvalidFileNameChars()));
-                string outputPath = Path.Combine(examsDirectory, $"{safeExamId}.json");
-
-                // Serialize with proper formatting
-                string formattedJson = JsonSerializer.Serialize(examContent, new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                });
-
-                File.WriteAllText(outputPath, formattedJson);
-
-                ImportStatus.Text = $"✓ Successfully imported: {examContent.Title}\n" +
-                                  $"  • Exam ID: {examContent.ExamId}\n" +
-                                  $"  • Questions: {examContent.Questions.Count}\n" +
-                                  $"  • Duration: {examContent.Duration.TotalMinutes} minutes\n" +
-                                  $"  • Saved to: {outputPath}";
-                ImportStatus.Foreground = (System.Windows.Media.Brush)FindResource("SuccessBrush");
-
-                // Reload exams list
-                LoadExams();
-
-                MessageBox.Show(
-                    $"✓ Exam imported successfully!\n\n" +
-                    $"Exam: {examContent.Title}\n" +
-                    $"ID: {examContent.ExamId}\n" +
-                    $"Questions: {examContent.Questions.Count}\n" +
-                    $"Duration: {examContent.Duration.TotalMinutes} minutes\n\n" +
-                    $"You can now generate credentials for this exam.",
-                    "Import Successful",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                // Clear selection
-                selectedFilePath = null;
-                SelectedFileText.Text = "No file selected";
-                SelectedFileText.Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush");
-                ImportBtn.IsEnabled = false;
-            }
-            catch (JsonException ex)
-            {
-                ImportStatus.Text = $"✗ JSON Parse Error: {ex.Message}\n\n" +
-                                  "Please ensure your JSON is properly formatted.";
-                ImportStatus.Foreground = (System.Windows.Media.Brush)FindResource("ErrorBrush");
-
-                MessageBox.Show($"Invalid JSON format:\n\n{ex.Message}", "Import Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            catch (Exception ex)
-            {
-                ImportStatus.Text = $"✗ Import failed: {ex.Message}";
-                ImportStatus.Foreground = (System.Windows.Media.Brush)FindResource("ErrorBrush");
-
-                MessageBox.Show($"Import failed:\n\n{ex.Message}", "Import Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void ImportCSV_Click(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog dialog = new OpenFileDialog
-            {
-                Filter = "CSV Files (*.csv)|*.csv",
-                Title = "Select Exam CSV File"
-            };
-
-            if (dialog.ShowDialog() != true) return;
-
-            try
-            {
-                var lines = File.ReadAllLines(dialog.FileName);
-                if (lines.Length < 2)
-                {
-                    MessageBox.Show("CSV must have header and at least one question", "Error");
-                    return;
-                }
-
-                // Parse CSV
-                var exam = new ExamContent
-                {
-                    ExamId = Path.GetFileNameWithoutExtension(dialog.FileName),
-                    Title = "Imported from CSV",
-                    Duration = TimeSpan.FromMinutes(60),
-                    Questions = new List<Question>()
-                };
-
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    var parts = lines[i].Split(',');
-                    if (parts.Length < 3) continue;
-
-                    var question = new Question
-                    {
-                        Id = $"q{i}",
-                        Text = parts[0].Trim(),
-                        Type = parts[1].Trim().ToUpper() == "MCQ" ? QuestionType.MultipleChoice : QuestionType.Essay,
-                        Points = int.TryParse(parts[2], out int marks) ? marks : 1
-                    };
-
-                    // If MCQ, parse options (columns 3-6) and answer (column 7)
-                    if (question.Type == QuestionType.MultipleChoice && parts.Length >= 8)
-                    {
-                        question.Options = new List<string>
-                {
-                    parts[3].Trim(),
-                    parts[4].Trim(),
-                    parts[5].Trim(),
-                    parts[6].Trim()
-                };
-                        question.CorrectAnswer = parts[7].Trim();
-                    }
-
-                    exam.Questions.Add(question);
-                }
-
-                // Save exam
-                string examPath = Path.Combine(examsDirectory, $"{exam.ExamId}.json");
-                string json = JsonSerializer.Serialize(exam, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(examPath, json);
-
-                MessageBox.Show($"✓ Imported {exam.Questions.Count} questions!", "Success");
-                LoadExams();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Import failed: {ex.Message}", "Error");
-            }
-        }
-
-        private void Generate_Click(object sender, RoutedEventArgs e)
-        {
-            string studentId = StudentIdInput.Text.Trim();
+            string studentIds = BatchStudentIdsBox.Text.Trim();
             string selectedExam = ExamSelector.SelectedItem?.ToString();
-            string hardwareId = HardwareIdInput.Text.Trim();
-            string computerName = ComputerNameInput.Text.Trim();
 
-            // Validation
-            if (string.IsNullOrEmpty(studentId))
+            if (string.IsNullOrEmpty(studentIds))
             {
-                MessageBox.Show("Please enter Student ID", "Validation Error",
+                MessageBox.Show("Please enter student IDs (one per line)", "Validation Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
-                StudentIdInput.Focus();
                 return;
             }
 
             if (string.IsNullOrEmpty(selectedExam) || selectedExam.Contains("No exams"))
             {
-                MessageBox.Show("Please import an exam first", "Validation Error",
+                MessageBox.Show("Please upload an exam first", "Validation Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
-            }
-
-            if (string.IsNullOrEmpty(hardwareId))
-            {
-                MessageBox.Show("Please enter Hardware ID", "Validation Error",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                HardwareIdInput.Focus();
-                return;
-            }
-
-            if (string.IsNullOrEmpty(computerName))
-            {
-                computerName = Environment.MachineName;
             }
 
             try
             {
-                // Extract exam ID from selection (format: "EXAMID - Title")
                 string examId = selectedExam.Split('-')[0].Trim();
+                var studentIdList = studentIds.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                              .Select(s => s.Trim())
+                                              .Where(s => !string.IsNullOrEmpty(s))
+                                              .ToList();
 
-                var credential = credentialManager.GenerateCredential(
-                    studentId, examId, hardwareId, computerName, 180);
+                if (studentIdList.Count == 0)
+                {
+                    MessageBox.Show("No valid student IDs found", "Validation Error",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
 
-                // Display credentials
-                GenStudentId.Text = credential.StudentId;
-                GenAccessToken.Text = credential.AccessToken;
-                GenTotpSecret.Text = credential.TotpSecret;
-                GenCurrentTotp.Text = TotpManager.GenerateCode(credential.TotpSecret);
+                currentBatchCredentials.Clear();
 
-                // Convert to local time for display
-                TimeZoneInfo localZone = TimeZoneInfo.Local;
-                DateTime expiresLocal = TimeZoneInfo.ConvertTimeFromUtc(credential.ExpiresAt, localZone);
-                GenValidUntil.Text = expiresLocal.ToString("yyyy-MM-dd HH:mm:ss");
+                foreach (var studentId in studentIdList)
+                {
+                    var credential = credentialManager.GenerateCredential(studentId, examId, allowedLogins: 1);
+                    currentBatchCredentials.Add(new StudentCredentialInfo
+                    {
+                        StudentId = credential.StudentId,
+                        LoginCode = credential.LoginCode,
+                        ExamId = credential.ExamId
+                    });
+                }
 
-                CredentialsDisplay.Visibility = Visibility.Visible;
-                totpUpdateTimer.Start();
+                // Display codes
+                var sb = new StringBuilder();
+                sb.AppendLine($"✓ Generated codes for {currentBatchCredentials.Count} students:");
+                sb.AppendLine();
+                sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                sb.AppendLine($"{"Student ID",-15} | Login Code");
+                sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-                MessageBox.Show(
-                    "✓ Credentials generated successfully!\n\n" +
-                    "IMPORTANT INSTRUCTIONS:\n\n" +
-                    "1. Give the student their Access Token\n" +
-                    "2. Have them scan the TOTP Secret with their authenticator app\n" +
-                    "3. These credentials are:\n" +
-                    "   • Hardware-bound (can only be used on this computer)\n" +
-                    "   • Single-use (will be invalidated after login)\n" +
-                    "   • Time-limited (expires after 180 minutes)\n\n" +
-                    "4. Student must enter TOTP code from their app during login",
-                    "Success",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                foreach (var cred in currentBatchCredentials)
+                {
+                    sb.AppendLine($"{cred.StudentId,-15} | {cred.LoginCode}");
+                }
 
-                // Clear inputs
-                StudentIdInput.Clear();
-                HardwareIdInput.Clear();
-                ComputerNameInput.Clear();
+                sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                sb.AppendLine();
+                sb.AppendLine("These codes are single-use and expire after first login.");
+
+                BatchCodesOutput.Text = sb.ToString();
+                BatchCodesOutput.Visibility = Visibility.Visible;
+
+                UpdateStatus($"✓ Generated {currentBatchCredentials.Count} codes", false);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error generating credentials:\n\n{ex.Message}", "Error",
+                MessageBox.Show($"Error generating batch codes: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void CopyCredentials_Click(object sender, RoutedEventArgs e)
+        private void CopyBatchCodes_Click(object sender, RoutedEventArgs e)
         {
-            string details = $"=== EXAM CREDENTIALS ===\n\n" +
-                           $"Student ID: {GenStudentId.Text}\n" +
-                           $"Access Token: {GenAccessToken.Text}\n\n" +
-                           $"TOTP Setup:\n" +
-                           $"Secret Key: {GenTotpSecret.Text}\n" +
-                           $"Current Code: {GenCurrentTotp.Text}\n\n" +
-                           $"Valid Until: {GenValidUntil.Text}\n\n" +
-                           $"INSTRUCTIONS:\n" +
-                           $"1. Add TOTP secret to authenticator app\n" +
-                           $"2. Use Student ID and Access Token to login\n" +
-                           $"3. Enter 6-digit code from authenticator\n" +
-                           $"4. Credentials are single-use only";
+            if (currentBatchCredentials.Count == 0)
+            {
+                MessageBox.Show("No codes to copy. Generate codes first.", "Info",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
-            Clipboard.SetText(details);
-            MessageBox.Show("✓ Credentials copied to clipboard!", "Success",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            try
+            {
+                Clipboard.SetText(BatchCodesOutput.Text);
+                MessageBox.Show("✓ Codes copied to clipboard!", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to copy: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ExportBatchCodes_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentBatchCredentials.Count == 0)
+            {
+                MessageBox.Show("No codes to export. Generate codes first.", "Info",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var saveDialog = new SaveFileDialog
+                {
+                    Filter = "Text Files (*.txt)|*.txt|CSV Files (*.csv)|*.csv",
+                    FileName = $"LoginCodes_{DateTime.Now:yyyyMMdd_HHmmss}"
+                };
+
+                if (saveDialog.ShowDialog() != true) return;
+
+                if (saveDialog.FileName.EndsWith(".csv"))
+                {
+                    // Export as CSV
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Student ID,Login Code,Exam ID");
+                    foreach (var cred in currentBatchCredentials)
+                    {
+                        sb.AppendLine($"{cred.StudentId},{cred.LoginCode},{cred.ExamId}");
+                    }
+                    File.WriteAllText(saveDialog.FileName, sb.ToString());
+                }
+                else
+                {
+                    // Export as formatted text
+                    File.WriteAllText(saveDialog.FileName, BatchCodesOutput.Text);
+                }
+
+                MessageBox.Show($"✓ Codes exported to:\n{saveDialog.FileName}", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Export failed: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateStatus(string message, bool isError)
+        {
+            StatusText.Text = message;
+            StatusText.Foreground = isError
+                ? System.Windows.Media.Brushes.Red
+                : System.Windows.Media.Brushes.Green;
         }
     }
 }
