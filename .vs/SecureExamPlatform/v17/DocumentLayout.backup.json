@@ -3,6 +3,14 @@
   "WorkspaceRootPath": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\simplifiedloginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\simplifiedloginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexamplatform\\ui\\examwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{61464A98-53F6-46A7-9CDB-397325DB99A1}|SecureExamPlatform\\SecureExamPlatform.csproj|solutionrelative:secureexamplatform\\ui\\examwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
@@ -31,15 +39,39 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "SimplifiedLoginWindow.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\SimplifiedLoginWindow.xaml.cs",
+              "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\SimplifiedLoginWindow.xaml.cs",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\SimplifiedLoginWindow.xaml.cs",
+              "RelativeToolTip": "SecureExamPlatform\\UI\\SimplifiedLoginWindow.xaml.cs",
+              "ViewState": "AgIAAEUAAAAAAAAAAAAowE8AAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-09T12:30:34.075Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "ExamWindow.xaml.cs",
               "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
               "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
               "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
               "RelativeToolTip": "SecureExamPlatform\\UI\\ExamWindow.xaml.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAMIBAAA9AAAAAAAAAA==",
+              "ViewState": "AgIAAD0CAAAAAAAAAAA3wEcCAAAwAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-09T07:06:45.903Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-09T11:23:58.986Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "LoginWindow.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
+              "RelativeDocumentMoniker": "SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
+              "RelativeToolTip": "SecureExamPlatform\\UI\\LoginWindow.xaml.cs",
+              "ViewState": "AgIAAFUAAAAAAAAAAAAcwG8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-09T11:23:51.69Z"
             }
           ]
         }

@@ -9,13 +9,22 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace SecureExamPlatform.UI
 {
     public partial class ExamWindow : Window, INotifyPropertyChanged
     {
+        // Question organization
+        private class ExamSection
+        {
+            public string Name { get; set; }
+            public List<Question> Questions { get; set; } = new List<Question>();
+        }
+
         private readonly ExamSessionManager _sessionManager;
         private EnhancedProcessMonitor _processMonitor;
         private ScreenshotPrevention _screenshotPrevention;
@@ -23,18 +32,22 @@ namespace SecureExamPlatform.UI
 
         private ExamContent _examContent;
         private Dictionary<string, string> _studentAnswers;
+        private List<ExamSection> _sections;
+        private int _currentSectionIndex;
         private int _currentQuestionIndex;
         private Question _currentQuestion;
 
         private DispatcherTimer _examTimer;
         private DispatcherTimer _autoSaveTimer;
-        private DispatcherTimer _autoSaveDebounceTimer;
         private TimeSpan _remainingTime;
         private bool isSubmitted = false;
 
         private RadioButton[] _mcqOptions;
         private readonly HashSet<string> _attemptedQuestions = new HashSet<string>();
         private readonly HashSet<string> _flaggedQuestions = new HashSet<string>();
+
+        // Section colors for visual distinction
+        private readonly string[] _sectionColors = { "#2e7d32", "#1565c0", "#c62828", "#f57c00", "#6a1b9a" };
 
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
@@ -58,6 +71,7 @@ namespace SecureExamPlatform.UI
 
                 _sessionManager = new ExamSessionManager();
                 _studentAnswers = new Dictionary<string, string>();
+                _sections = new List<ExamSection>();
 
                 _examTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
                 _examTimer.Tick += UpdateExamTimer;
@@ -78,7 +92,10 @@ namespace SecureExamPlatform.UI
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Initialization happens in StartExam to prevent race conditions
+            // Make fullscreen
+            this.WindowState = WindowState.Maximized;
+            this.WindowStyle = WindowStyle.None;
+            this.Topmost = true;
         }
 
         private void Window_Closing(object sender, CancelEventArgs e)
@@ -122,30 +139,25 @@ namespace SecureExamPlatform.UI
                 }
 
                 _examContent = result.ExamContent;
-                _currentQuestionIndex = 0;
                 _remainingTime = _examContent.Duration;
 
-                Questions.Clear();
-                for (int i = 0; i < _examContent.Questions.Count; i++)
-                {
-                    Questions.Add(new QuestionViewModel
-                    {
-                        Id = _examContent.Questions[i].Id,
-                        Number = i + 1
-                    });
-                }
+                // Organize questions into sections (auto-detect or use first 10% as section A, next 10% as B, etc.)
+                OrganizeIntoSections();
 
                 StudentId = studentId;
-                QuestionProgress = $"Question {_currentQuestionIndex + 1} of {_examContent.Questions.Count}";
+                UpdateQuestionProgress();
                 OnPropertyChanged(nameof(ExamTitle));
-                OnPropertyChanged(nameof(QuestionProgress));
 
-                // Display first question
-                if (_examContent.Questions.Any())
+                // Display first section and question
+                if (_sections.Any() && _sections[0].Questions.Any())
                 {
+                    _currentSectionIndex = 0;
+                    _currentQuestionIndex = 0;
+
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        DisplayQuestion(_examContent.Questions[0]);
+                        BuildNavigationUI();
+                        DisplayQuestion(_sections[0].Questions[0]);
                     });
                 }
 
@@ -154,7 +166,7 @@ namespace SecureExamPlatform.UI
                 _autoSaveTimer.Start();
 
                 // Initialize security AFTER UI is ready
-                await Task.Delay(500); // Give UI time to settle
+                await Task.Delay(500);
                 await Dispatcher.InvokeAsync(() =>
                 {
                     ConfigureKioskMode();
@@ -165,92 +177,176 @@ namespace SecureExamPlatform.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to start exam: {ex.Message}\n\n{ex.StackTrace}", "Error",
+                MessageBox.Show($"Failed to start exam: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
         }
 
-        private void ConfigureKioskMode()
+        private void OrganizeIntoSections()
         {
-            try
+            // Auto-detect sections based on question types or create equal sections
+            // For now, create sections of ~30 questions each
+            const int questionsPerSection = 30;
+            int sectionCount = (int)Math.Ceiling(_examContent.Questions.Count / (double)questionsPerSection);
+
+            for (int i = 0; i < sectionCount; i++)
             {
-                var helper = new System.Windows.Interop.WindowInteropHelper(this);
-                if (helper.Handle == IntPtr.Zero) return;
-
-                int style = GetWindowLong(helper.Handle, GWL_STYLE);
-                SetWindowLong(helper.Handle, GWL_STYLE, style & ~WS_SYSMENU);
-                SetWindowPos(helper.Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-
-                PreviewKeyDown += OnPreviewKeyDown;
-
-                if (_screenshotPrevention != null)
+                var section = new ExamSection
                 {
-                    _screenshotPrevention.ProtectWindow(helper.Handle);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Kiosk mode warning: {ex.Message}");
-            }
-        }
-
-        private void StartSecurityMonitoring()
-        {
-            try
-            {
-                _processMonitor = new EnhancedProcessMonitor();
-                _screenshotPrevention = new ScreenshotPrevention();
-                _captureBlocker = new ScreenCaptureBlocker();
-
-                _processMonitor.StartMonitoring();
-                _captureBlocker.StartBlocking();
-                _screenshotPrevention.StartProtection();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Security warning: {ex.Message}");
+                    Name = $"Section {(char)('A' + i)}",
+                    Questions = _examContent.Questions
+                        .Skip(i * questionsPerSection)
+                        .Take(questionsPerSection)
+                        .ToList()
+                };
+                _sections.Add(section);
             }
         }
 
-        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        private void BuildNavigationUI()
         {
-            if (Keyboard.Modifiers == ModifierKeys.Alt && (e.Key == Key.Tab || e.Key == Key.F4 || e.Key == Key.Escape))
+            var navPanel = FindName("NavigationPanel") as StackPanel;
+            if (navPanel == null) return;
+
+            navPanel.Children.Clear();
+
+            // Section tabs
+            var sectionTabs = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+
+            for (int i = 0; i < _sections.Count; i++)
             {
-                e.Handled = true;
-                return;
+                int sectionIndex = i; // Capture for closure
+                var btn = new Button
+                {
+                    Content = _sections[i].Name,
+                    Width = 120,
+                    Height = 40,
+                    Margin = new Thickness(5, 0, 5, 0),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_sectionColors[i % _sectionColors.Length])),
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.Bold,
+                    Tag = sectionIndex
+                };
+                btn.Click += (s, e) => SwitchSection(sectionIndex);
+                sectionTabs.Children.Add(btn);
             }
-            if (Keyboard.Modifiers == ModifierKeys.Windows || e.Key == Key.LWin || e.Key == Key.RWin)
+            navPanel.Children.Add(sectionTabs);
+
+            // Question grid for current section
+            var questionGrid = new UniformGrid
             {
-                e.Handled = true;
-                return;
+                Columns = 5,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+
+            UpdateQuestionGrid(questionGrid);
+            navPanel.Children.Add(new ScrollViewer
+            {
+                Content = questionGrid,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MaxHeight = 400
+            });
+        }
+
+        private void UpdateQuestionGrid(UniformGrid grid)
+        {
+            grid.Children.Clear();
+
+            if (_currentSectionIndex >= _sections.Count) return;
+
+            var currentSection = _sections[_currentSectionIndex];
+
+            for (int i = 0; i < currentSection.Questions.Count; i++)
+            {
+                var question = currentSection.Questions[i];
+                int questionIndex = i; // Capture for closure
+
+                var btn = new Button
+                {
+                    Content = $"Q{i + 1}",
+                    Height = 40,
+                    Margin = new Thickness(2),
+                    Tag = question.Id
+                };
+
+                // Set color based on status
+                if (_attemptedQuestions.Contains(question.Id))
+                    btn.Background = Brushes.Green;
+                else if (_flaggedQuestions.Contains(question.Id))
+                    btn.Background = Brushes.Orange;
+                else
+                    btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444"));
+
+                btn.Foreground = Brushes.White;
+                btn.Click += (s, e) => NavigateToQuestion(questionIndex);
+
+                grid.Children.Add(btn);
             }
+        }
+
+        private void SwitchSection(int sectionIndex)
+        {
+            if (sectionIndex < 0 || sectionIndex >= _sections.Count) return;
+
+            SaveCurrentAnswer();
+            _currentSectionIndex = sectionIndex;
+            _currentQuestionIndex = 0;
+
+            var navPanel = FindName("NavigationPanel") as StackPanel;
+            if (navPanel?.Children.Count > 1 && navPanel.Children[1] is ScrollViewer sv && sv.Content is UniformGrid grid)
+            {
+                UpdateQuestionGrid(grid);
+            }
+
+            DisplayQuestion(_sections[sectionIndex].Questions[0]);
+            UpdateQuestionProgress();
         }
 
         private void DisplayQuestion(Question question)
         {
             try
             {
-                CurrentQuestionNumber = _currentQuestionIndex + 1;
                 _currentQuestion = question;
-                OnPropertyChanged(nameof(CurrentQuestionText));
 
-                var answerArea = FindName("AnswerTextBox") as TextBox;
+                // Calculate global question number
+                int globalQuestionNum = 1;
+                for (int i = 0; i < _currentSectionIndex; i++)
+                {
+                    globalQuestionNum += _sections[i].Questions.Count;
+                }
+                globalQuestionNum += _currentQuestionIndex + 1;
+
+                CurrentQuestionNumber = globalQuestionNum;
+                OnPropertyChanged(nameof(CurrentQuestionText));
+                OnPropertyChanged(nameof(CurrentSectionName));
+
+                var answerArea = FindName("AnswerArea") as Grid;
                 if (answerArea == null) return;
 
-                var parent = answerArea.Parent as Grid;
-                if (parent != null && _mcqOptions != null)
+                // Clear previous content completely
+                answerArea.Children.Clear();
+                answerArea.RowDefinitions.Clear();
+
+                // Add label row
+                answerArea.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                // Add answer row
+                answerArea.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+                var label = new TextBlock
                 {
-                    foreach (var option in _mcqOptions)
-                    {
-                        parent.Children.Remove(option);
-                    }
-                }
+                    Text = "Your Answer:",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#aaa")),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                Grid.SetRow(label, 0);
+                answerArea.Children.Add(label);
 
                 if (question.Type == QuestionType.MultipleChoice && question.Options != null && question.Options.Count > 0)
                 {
-                    answerArea.Visibility = Visibility.Collapsed;
-
+                    // MCQ - show radio buttons
                     var optionsPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
                     _mcqOptions = new RadioButton[question.Options.Count];
 
@@ -259,10 +355,10 @@ namespace SecureExamPlatform.UI
                         var radio = new RadioButton
                         {
                             Content = question.Options[i],
-                            GroupName = "MCQOptions",
+                            GroupName = $"MCQOptions_{question.Id}", // Unique group per question
                             Margin = new Thickness(0, 8, 0, 8),
                             FontSize = 14,
-                            Foreground = System.Windows.Media.Brushes.White,
+                            Foreground = Brushes.White,
                             Tag = i
                         };
                         radio.Checked += McqOption_Checked;
@@ -270,12 +366,10 @@ namespace SecureExamPlatform.UI
                         optionsPanel.Children.Add(radio);
                     }
 
-                    if (parent != null)
-                    {
-                        Grid.SetRow(optionsPanel, 1);
-                        parent.Children.Add(optionsPanel);
-                    }
+                    Grid.SetRow(optionsPanel, 1);
+                    answerArea.Children.Add(optionsPanel);
 
+                    // Restore saved answer
                     if (_studentAnswers.ContainsKey(question.Id))
                     {
                         string savedAnswer = _studentAnswers[question.Id];
@@ -288,8 +382,28 @@ namespace SecureExamPlatform.UI
                 }
                 else
                 {
-                    answerArea.Visibility = Visibility.Visible;
-                    answerArea.Text = _studentAnswers.ContainsKey(question.Id) ? _studentAnswers[question.Id] : string.Empty;
+                    // Text answer - show textbox
+                    var textBox = new TextBox
+                    {
+                        Name = "AnswerTextBox",
+                        MinHeight = 200,
+                        AcceptsReturn = true,
+                        TextWrapping = TextWrapping.Wrap,
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0a0a0a")),
+                        Foreground = Brushes.White,
+                        BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444")),
+                        Padding = new Thickness(10),
+                        FontSize = 14,
+                        Text = _studentAnswers.ContainsKey(question.Id) ? _studentAnswers[question.Id] : string.Empty
+                    };
+                    textBox.TextChanged += AnswerTextBox_TextChanged;
+
+                    Grid.SetRow(textBox, 1);
+                    answerArea.Children.Add(textBox);
+
+                    // Register name for later access
+                    RegisterName("AnswerTextBox", textBox);
                 }
             }
             catch (Exception ex)
@@ -305,7 +419,7 @@ namespace SecureExamPlatform.UI
                 int selectedIndex = (int)radio.Tag;
                 _studentAnswers[_currentQuestion.Id] = selectedIndex.ToString();
                 _attemptedQuestions.Add(_currentQuestion.Id);
-                UpdateQuestionListUI();
+                UpdateNavigationUI();
                 ShowAutoSaveIndicator();
             }
         }
@@ -337,32 +451,55 @@ namespace SecureExamPlatform.UI
             }
             else
             {
-                var answerBox = FindName("AnswerTextBox") as TextBox;
-                return answerBox?.Text ?? string.Empty;
+                try
+                {
+                    var answerBox = FindName("AnswerTextBox") as TextBox;
+                    return answerBox?.Text ?? string.Empty;
+                }
+                catch
+                {
+                    return string.Empty;
+                }
             }
         }
 
         private void NavigateToQuestion(int index)
         {
-            if (_examContent == null || index < 0 || index >= _examContent.Questions.Count) return;
+            if (_currentSectionIndex >= _sections.Count) return;
+            if (index < 0 || index >= _sections[_currentSectionIndex].Questions.Count) return;
 
             SaveCurrentAnswer();
             _currentQuestionIndex = index;
-            DisplayQuestion(_examContent.Questions[index]);
-            QuestionProgress = $"Question {_currentQuestionIndex + 1} of {_examContent.Questions.Count}";
-            OnPropertyChanged(nameof(QuestionProgress));
+            DisplayQuestion(_sections[_currentSectionIndex].Questions[index]);
+            UpdateQuestionProgress();
         }
 
         private void OnPreviousQuestion()
         {
             if (_currentQuestionIndex > 0)
+            {
                 NavigateToQuestion(_currentQuestionIndex - 1);
+            }
+            else if (_currentSectionIndex > 0)
+            {
+                // Go to previous section's last question
+                SwitchSection(_currentSectionIndex - 1);
+                _currentQuestionIndex = _sections[_currentSectionIndex].Questions.Count - 1;
+                NavigateToQuestion(_currentQuestionIndex);
+            }
         }
 
         private void OnNextQuestion()
         {
-            if (_currentQuestionIndex < _examContent.Questions.Count - 1)
+            if (_currentQuestionIndex < _sections[_currentSectionIndex].Questions.Count - 1)
+            {
                 NavigateToQuestion(_currentQuestionIndex + 1);
+            }
+            else if (_currentSectionIndex < _sections.Count - 1)
+            {
+                // Go to next section's first question
+                SwitchSection(_currentSectionIndex + 1);
+            }
         }
 
         private async void OnSubmitExam()
@@ -439,17 +576,86 @@ namespace SecureExamPlatform.UI
             SaveCurrentAnswer();
         }
 
-        private void LogSecurityEvent(string message)
+        private void ConfigureKioskMode()
         {
-            Console.WriteLine($"[SECURITY] {message}");
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(this);
+                if (helper.Handle == IntPtr.Zero) return;
+
+                int style = GetWindowLong(helper.Handle, GWL_STYLE);
+                SetWindowLong(helper.Handle, GWL_STYLE, style & ~WS_SYSMENU);
+                SetWindowPos(helper.Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
+                PreviewKeyDown += OnPreviewKeyDown;
+
+                if (_screenshotPrevention != null)
+                {
+                    _screenshotPrevention.ProtectWindow(helper.Handle);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Kiosk mode warning: {ex.Message}");
+            }
+        }
+
+        private void StartSecurityMonitoring()
+        {
+            try
+            {
+                _processMonitor = new EnhancedProcessMonitor();
+                _screenshotPrevention = new ScreenshotPrevention();
+                _captureBlocker = new ScreenCaptureBlocker();
+
+                _processMonitor.StartMonitoring();
+                _captureBlocker.StartBlocking();
+                _screenshotPrevention.StartProtection();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Security warning: {ex.Message}");
+            }
+        }
+
+        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Block Alt+Tab, Alt+F4, Windows key
+            if (Keyboard.Modifiers == ModifierKeys.Alt && (e.Key == Key.Tab || e.Key == Key.F4 || e.Key == Key.Escape))
+            {
+                e.Handled = true;
+                return;
+            }
+            if (Keyboard.Modifiers == ModifierKeys.Windows || e.Key == Key.LWin || e.Key == Key.RWin)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // Allow Ctrl+Shift+Esc for emergency exit
+            if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.Escape)
+            {
+                var result = MessageBox.Show(
+                    "Emergency Exit?\n\nThis will terminate the exam. Your progress will be saved but marked incomplete.\n\nAre you absolutely sure?",
+                    "Emergency Exit",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    SaveCurrentAnswer();
+                    _sessionManager?.EndSession(false);
+                    CleanupAndExit();
+                    Application.Current.Shutdown();
+                }
+                e.Handled = true;
+            }
         }
 
         private void CleanupAndExit()
         {
             try
             {
-                MessageBox.Show("Exit ho gaya", "Debug", MessageBoxButton.OK, MessageBoxImage.Warning);
-
                 _processMonitor?.StopMonitoring();
                 _screenshotPrevention?.StopProtection();
                 _captureBlocker?.StopBlocking();
@@ -459,60 +665,21 @@ namespace SecureExamPlatform.UI
             catch { }
         }
 
-        private void PreviousButton_Click(object sender, RoutedEventArgs e) => OnPreviousQuestion();
-        private void NextButton_Click(object sender, RoutedEventArgs e) => OnNextQuestion();
-        private void SubmitButton_Click(object sender, RoutedEventArgs e) => OnSubmitExam();
-
-        private void QuestionButton_Click(object sender, RoutedEventArgs e)
+        private void UpdateQuestionProgress()
         {
-            if (sender is Button button && button.Tag is string questionId)
-            {
-                var questionIndex = _examContent.Questions.FindIndex(q => q.Id == questionId);
-                if (questionIndex >= 0) NavigateToQuestion(questionIndex);
-            }
+            int totalQuestions = _sections.Sum(s => s.Questions.Count);
+            int currentGlobal = _sections.Take(_currentSectionIndex).Sum(s => s.Questions.Count) + _currentQuestionIndex + 1;
+            QuestionProgress = $"Question {currentGlobal} of {totalQuestions}";
+            OnPropertyChanged(nameof(QuestionProgress));
         }
 
-        private void FlagButton_Click(object sender, RoutedEventArgs e)
+        private void UpdateNavigationUI()
         {
-            if (_currentQuestion != null)
+            var navPanel = FindName("NavigationPanel") as StackPanel;
+            if (navPanel?.Children.Count > 1 && navPanel.Children[1] is ScrollViewer sv && sv.Content is UniformGrid grid)
             {
-                if (_flaggedQuestions.Contains(_currentQuestion.Id))
-                {
-                    _flaggedQuestions.Remove(_currentQuestion.Id);
-                }
-                else
-                {
-                    _flaggedQuestions.Add(_currentQuestion.Id);
-                }
-                UpdateQuestionListUI();
+                UpdateQuestionGrid(grid);
             }
-        }
-
-        private void AnswerTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (_currentQuestion != null && sender is TextBox textBox)
-            {
-                if (!string.IsNullOrWhiteSpace(textBox.Text))
-                {
-                    _attemptedQuestions.Add(_currentQuestion.Id);
-                }
-                ShowAutoSaveIndicator();
-
-                _autoSaveDebounceTimer?.Stop();
-                _autoSaveDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-                _autoSaveDebounceTimer.Tick += (s, args) =>
-                {
-                    SaveCurrentAnswer();
-                    _autoSaveDebounceTimer.Stop();
-                };
-                _autoSaveDebounceTimer.Start();
-            }
-        }
-
-        private void DismissWarning_Click(object sender, RoutedEventArgs e)
-        {
-            var warningOverlay = FindName("WarningOverlay") as Border;
-            if (warningOverlay != null) warningOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void ShowAutoSaveIndicator()
@@ -534,28 +701,40 @@ namespace SecureExamPlatform.UI
             });
         }
 
-        private void UpdateQuestionListUI()
+        private void PreviousButton_Click(object sender, RoutedEventArgs e) => OnPreviousQuestion();
+        private void NextButton_Click(object sender, RoutedEventArgs e) => OnNextQuestion();
+        private void SubmitButton_Click(object sender, RoutedEventArgs e) => OnSubmitExam();
+
+        private void FlagButton_Click(object sender, RoutedEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            if (_currentQuestion != null)
             {
-                var qList = new List<QuestionViewModel>();
-                for (int i = 0; i < _examContent.Questions.Count; i++)
+                if (_flaggedQuestions.Contains(_currentQuestion.Id))
                 {
-                    var q = _examContent.Questions[i];
-                    qList.Add(new QuestionViewModel
-                    {
-                        Id = q.Id,
-                        Number = i + 1,
-                        StatusIcon = _flaggedQuestions.Contains(q.Id) ? "🚩" : "",
-                        StatusColor = _attemptedQuestions.Contains(q.Id) ? "#2e7d32" : "#444"
-                    });
+                    _flaggedQuestions.Remove(_currentQuestion.Id);
                 }
-                this.Questions = qList;
-                OnPropertyChanged(nameof(Questions));
-            });
+                else
+                {
+                    _flaggedQuestions.Add(_currentQuestion.Id);
+                }
+                UpdateNavigationUI();
+            }
+        }
+
+        private void AnswerTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_currentQuestion != null && sender is TextBox textBox)
+            {
+                if (!string.IsNullOrWhiteSpace(textBox.Text))
+                {
+                    _attemptedQuestions.Add(_currentQuestion.Id);
+                }
+                ShowAutoSaveIndicator();
+            }
         }
 
         public string ExamTitle => _examContent?.Title ?? "Loading Exam...";
+
         private string _studentId = "N/A";
         public string StudentId
         {
@@ -571,8 +750,8 @@ namespace SecureExamPlatform.UI
         }
 
         public string CurrentQuestionText => _currentQuestion?.Text ?? "";
+        public string CurrentSectionName => _currentSectionIndex < _sections.Count ? _sections[_currentSectionIndex].Name : "";
         public string RemainingTimeDisplay => $"{_remainingTime.Hours:D2}:{_remainingTime.Minutes:D2}:{_remainingTime.Seconds:D2}";
-        public List<QuestionViewModel> Questions { get; set; } = new List<QuestionViewModel>();
 
         private int _currentQuestionNumber = 1;
         public int CurrentQuestionNumber
@@ -587,13 +766,5 @@ namespace SecureExamPlatform.UI
 
         public event PropertyChangedEventHandler PropertyChanged;
         private void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        public class QuestionViewModel
-        {
-            public string Id { get; set; } = "";
-            public int Number { get; set; }
-            public string StatusColor { get; set; } = "#444";
-            public string StatusIcon { get; set; } = "";
-        }
     }
 }

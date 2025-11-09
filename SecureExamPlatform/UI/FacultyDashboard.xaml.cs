@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using SecureExamPlatform.Core;
 using SecureExamPlatform.Models;
+using SecureExamPlatform.Grading;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,16 +9,18 @@ using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using System.Text;
+using System.Windows.Controls;
 
 namespace SecureExamPlatform.UI
 {
     public partial class FacultyDashboard : Window
     {
-        private const string FACULTY_PASSWORD = "admin123"; // Change this in production
+        private const string FACULTY_PASSWORD = "admin123";
         private SimpleCredentialManager credentialManager;
         private string examsDirectory;
         private List<ExamContent> availableExams;
         private List<StudentCredentialInfo> currentBatchCredentials;
+        private GradingTool gradingTool;
 
         public class StudentCredentialInfo
         {
@@ -30,7 +33,6 @@ namespace SecureExamPlatform.UI
         {
             InitializeComponent();
 
-            // Authenticate on load
             if (!AuthenticateFaculty())
             {
                 this.Close();
@@ -38,12 +40,16 @@ namespace SecureExamPlatform.UI
             }
 
             credentialManager = new SimpleCredentialManager();
+            gradingTool = new GradingTool();
             availableExams = new List<ExamContent>();
             currentBatchCredentials = new List<StudentCredentialInfo>();
 
             string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
             examsDirectory = Path.Combine(appDirectory, "Exams");
             Directory.CreateDirectory(examsDirectory);
+
+            // Set window to fullscreen
+            this.WindowState = WindowState.Maximized;
 
             LoadExams();
         }
@@ -53,40 +59,51 @@ namespace SecureExamPlatform.UI
             var passwordDialog = new Window
             {
                 Title = "Faculty Authentication",
-                Height = 200,
-                Width = 400,
+                Height = 250,
+                Width = 450,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Background = System.Windows.Media.Brushes.White,
                 ResizeMode = ResizeMode.NoResize
             };
 
-            var stack = new System.Windows.Controls.StackPanel
+            var stack = new StackPanel
             {
-                Margin = new Thickness(20),
+                Margin = new Thickness(30),
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            var title = new System.Windows.Controls.TextBlock
+            var title = new TextBlock
             {
-                Text = "Enter Faculty Password",
-                FontSize = 16,
+                Text = "🔐 Faculty Login",
+                FontSize = 20,
                 FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 10),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var subtitle = new TextBlock
+            {
+                Text = "Enter your password to access the dashboard",
+                FontSize = 12,
+                Foreground = System.Windows.Media.Brushes.Gray,
                 Margin = new Thickness(0, 0, 0, 20),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
 
-            var passwordBox = new System.Windows.Controls.PasswordBox
+            var passwordBox = new PasswordBox
             {
-                Height = 40,
+                Height = 45,
                 FontSize = 14,
                 Margin = new Thickness(0, 0, 0, 20)
             };
 
-            var loginButton = new System.Windows.Controls.Button
+            var loginButton = new Button
             {
                 Content = "Login",
-                Height = 40,
-                FontSize = 14
+                Height = 45,
+                FontSize = 14,
+                Background = System.Windows.Media.Brushes.Green,
+                Foreground = System.Windows.Media.Brushes.White
             };
 
             bool authenticated = false;
@@ -111,11 +128,12 @@ namespace SecureExamPlatform.UI
             {
                 if (e.Key == System.Windows.Input.Key.Enter)
                 {
-                    loginButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                    loginButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 }
             };
 
             stack.Children.Add(title);
+            stack.Children.Add(subtitle);
             stack.Children.Add(passwordBox);
             stack.Children.Add(loginButton);
             passwordDialog.Content = stack;
@@ -132,47 +150,35 @@ namespace SecureExamPlatform.UI
             {
                 availableExams.Clear();
                 ExamSelector.Items.Clear();
+                GradingExamSelector.Items.Clear();
 
                 var examFiles = Directory.GetFiles(examsDirectory, "*.json");
 
                 if (examFiles.Length == 0)
                 {
                     ExamSelector.Items.Add("No exams available - Upload an exam first");
+                    GradingExamSelector.Items.Add("No exams available");
                     ExamSelector.IsEnabled = false;
+                    GradingExamSelector.IsEnabled = false;
                     return;
                 }
 
                 ExamSelector.IsEnabled = true;
+                GradingExamSelector.IsEnabled = true;
 
                 foreach (var file in examFiles)
                 {
                     try
                     {
                         string json = File.ReadAllText(file);
-                        var exam = JsonSerializer.Deserialize<ExamContent>(json, new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
+                        var exam = DeserializeExamWithDurationFix(json);
 
                         if (exam != null)
                         {
-                            // Fix duration if needed
-                            if (exam.Duration.TotalMinutes == 0)
-                            {
-                                using (JsonDocument doc = JsonDocument.Parse(json))
-                                {
-                                    if (doc.RootElement.TryGetProperty("duration", out JsonElement durationElement))
-                                    {
-                                        if (durationElement.ValueKind == JsonValueKind.Number)
-                                        {
-                                            exam.Duration = TimeSpan.FromMinutes(durationElement.GetInt32());
-                                        }
-                                    }
-                                }
-                            }
-
                             availableExams.Add(exam);
-                            ExamSelector.Items.Add($"{exam.ExamId} - {exam.Title}");
+                            string displayText = $"{exam.ExamId} - {exam.Title}";
+                            ExamSelector.Items.Add(displayText);
+                            GradingExamSelector.Items.Add(displayText);
                         }
                     }
                     catch (Exception ex)
@@ -185,6 +191,7 @@ namespace SecureExamPlatform.UI
                 if (ExamSelector.Items.Count > 0)
                 {
                     ExamSelector.SelectedIndex = 0;
+                    GradingExamSelector.SelectedIndex = 0;
                 }
 
                 UpdateStatus($"✓ Loaded {availableExams.Count} exam(s)", false);
@@ -193,6 +200,92 @@ namespace SecureExamPlatform.UI
             {
                 MessageBox.Show($"Error loading exams: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private ExamContent DeserializeExamWithDurationFix(string json)
+        {
+            try
+            {
+                // First, parse as JsonDocument to handle duration specially
+                using (JsonDocument doc = JsonDocument.Parse(json))
+                {
+                    var root = doc.RootElement;
+
+                    var exam = new ExamContent
+                    {
+                        ExamId = root.GetProperty("examId").GetString(),
+                        Title = root.GetProperty("title").GetString(),
+                        Questions = new List<Question>()
+                    };
+
+                    // Handle duration - can be either number (minutes) or string (TimeSpan format)
+                    if (root.TryGetProperty("duration", out JsonElement durationElement))
+                    {
+                        if (durationElement.ValueKind == JsonValueKind.Number)
+                        {
+                            exam.Duration = TimeSpan.FromMinutes(durationElement.GetInt32());
+                        }
+                        else if (durationElement.ValueKind == JsonValueKind.String)
+                        {
+                            if (TimeSpan.TryParse(durationElement.GetString(), out TimeSpan ts))
+                            {
+                                exam.Duration = ts;
+                            }
+                        }
+                    }
+
+                    // Parse questions
+                    if (root.TryGetProperty("questions", out JsonElement questionsElement))
+                    {
+                        foreach (var qElement in questionsElement.EnumerateArray())
+                        {
+                            var question = new Question
+                            {
+                                Id = qElement.GetProperty("id").GetString(),
+                                Text = qElement.GetProperty("text").GetString(),
+                                Points = qElement.TryGetProperty("marks", out var marksElem) ? marksElem.GetInt32() :
+                                        qElement.TryGetProperty("points", out var pointsElem) ? pointsElem.GetInt32() : 1
+                            };
+
+                            // Handle type
+                            if (qElement.TryGetProperty("type", out var typeElem))
+                            {
+                                string typeStr = typeElem.GetString()?.ToUpper() ?? "ESSAY";
+                                question.Type = typeStr switch
+                                {
+                                    "MCQ" or "MULTIPLECHOICE" => QuestionType.MultipleChoice,
+                                    "TRUEFALSE" => QuestionType.TrueFalse,
+                                    "FILLINTHEBLANK" => QuestionType.FillInTheBlank,
+                                    _ => QuestionType.Essay
+                                };
+                            }
+
+                            // Handle options for MCQ
+                            if (qElement.TryGetProperty("options", out var optionsElem))
+                            {
+                                foreach (var option in optionsElem.EnumerateArray())
+                                {
+                                    question.Options.Add(option.GetString());
+                                }
+                            }
+
+                            // Handle correct answer
+                            if (qElement.TryGetProperty("correctAnswer", out var answerElem))
+                            {
+                                question.CorrectAnswer = answerElem.GetString();
+                            }
+
+                            exam.Questions.Add(question);
+                        }
+                    }
+
+                    return exam;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to parse exam: {ex.Message}");
             }
         }
 
@@ -209,10 +302,7 @@ namespace SecureExamPlatform.UI
                 if (dialog.ShowDialog() != true) return;
 
                 string json = File.ReadAllText(dialog.FileName);
-                var exam = JsonSerializer.Deserialize<ExamContent>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var exam = DeserializeExamWithDurationFix(json);
 
                 if (exam == null)
                 {
@@ -226,46 +316,33 @@ namespace SecureExamPlatform.UI
                     throw new Exception("Exam must have a 'title'");
                 if (exam.Questions == null || exam.Questions.Count == 0)
                     throw new Exception("Exam must have at least one question");
-
-                // Handle duration
-                if (exam.Duration.TotalMinutes == 0)
-                {
-                    using (JsonDocument doc = JsonDocument.Parse(json))
-                    {
-                        if (doc.RootElement.TryGetProperty("duration", out JsonElement durationElement))
-                        {
-                            if (durationElement.ValueKind == JsonValueKind.Number)
-                            {
-                                exam.Duration = TimeSpan.FromMinutes(durationElement.GetInt32());
-                            }
-                        }
-                    }
-                }
-
                 if (exam.Duration.TotalMinutes == 0)
                     throw new Exception("Exam must have a valid duration");
 
-                // Validate questions
-                foreach (var q in exam.Questions)
-                {
-                    if (string.IsNullOrEmpty(q.Id))
-                        throw new Exception($"All questions must have an 'id'");
-                    if (string.IsNullOrEmpty(q.Text))
-                        throw new Exception($"Question {q.Id} must have 'text'");
-                    if (q.Type == 0)
-                        q.Type = QuestionType.Essay;
-                    if (q.Type == QuestionType.MultipleChoice && (q.Options == null || q.Options.Count < 2))
-                        throw new Exception($"MCQ Question {q.Id} must have at least 2 options");
-                }
-
-                // Save
+                // Save with properly formatted JSON
                 string safeExamId = string.Join("_", exam.ExamId.Split(Path.GetInvalidFileNameChars()));
                 string outputPath = Path.Combine(examsDirectory, $"{safeExamId}.json");
 
-                string formattedJson = JsonSerializer.Serialize(exam, new JsonSerializerOptions
+                // Create a properly formatted JSON with duration as minutes
+                var jsonObject = new
                 {
-                    WriteIndented = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    examId = exam.ExamId,
+                    title = exam.Title,
+                    duration = (int)exam.Duration.TotalMinutes,
+                    questions = exam.Questions.Select(q => new
+                    {
+                        id = q.Id,
+                        text = q.Text,
+                        type = q.Type.ToString(),
+                        options = q.Options,
+                        correctAnswer = q.CorrectAnswer,
+                        marks = q.Points
+                    })
+                };
+
+                string formattedJson = JsonSerializer.Serialize(jsonObject, new JsonSerializerOptions
+                {
+                    WriteIndented = true
                 });
 
                 File.WriteAllText(outputPath, formattedJson);
@@ -321,7 +398,7 @@ namespace SecureExamPlatform.UI
                     $"Exam: {examId}\n" +
                     $"━━━━━━━━━━━━━━━━━━━━━━\n\n" +
                     $"Give this code to the student.\n" +
-                    $"This is a single-use code that expires after first login.",
+                    $"This is a single-use code.",
                     "Success",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -383,7 +460,6 @@ namespace SecureExamPlatform.UI
                     });
                 }
 
-                // Display codes
                 var sb = new StringBuilder();
                 sb.AppendLine($"✓ Generated codes for {currentBatchCredentials.Count} students:");
                 sb.AppendLine();
@@ -397,11 +473,9 @@ namespace SecureExamPlatform.UI
                 }
 
                 sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                sb.AppendLine();
-                sb.AppendLine("These codes are single-use and expire after first login.");
 
                 BatchCodesOutput.Text = sb.ToString();
-                BatchCodesOutput.Visibility = Visibility.Visible;
+                BatchCodesOutputBorder.Visibility = Visibility.Visible;
 
                 UpdateStatus($"✓ Generated {currentBatchCredentials.Count} codes", false);
             }
@@ -455,7 +529,6 @@ namespace SecureExamPlatform.UI
 
                 if (saveDialog.FileName.EndsWith(".csv"))
                 {
-                    // Export as CSV
                     var sb = new StringBuilder();
                     sb.AppendLine("Student ID,Login Code,Exam ID");
                     foreach (var cred in currentBatchCredentials)
@@ -466,7 +539,6 @@ namespace SecureExamPlatform.UI
                 }
                 else
                 {
-                    // Export as formatted text
                     File.WriteAllText(saveDialog.FileName, BatchCodesOutput.Text);
                 }
 
@@ -478,6 +550,104 @@ namespace SecureExamPlatform.UI
                 MessageBox.Show($"Export failed: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void GradeExam_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedExam = GradingExamSelector.SelectedItem?.ToString();
+
+            if (string.IsNullOrEmpty(selectedExam) || selectedExam.Contains("No exams"))
+            {
+                MessageBox.Show("Please select an exam to grade", "Validation Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                string examId = selectedExam.Split('-')[0].Trim();
+
+                GradingStatusText.Text = "Grading in progress...";
+                GradingResultsPanel.Visibility = Visibility.Collapsed;
+
+                var results = gradingTool.GradeExam(examId);
+
+                if (results.Count == 0)
+                {
+                    GradingStatusText.Text = "No submissions found for this exam.";
+                    return;
+                }
+
+                // Display results
+                var sb = new StringBuilder();
+                sb.AppendLine($"📊 Grading Results for {examId}");
+                sb.AppendLine($"Total Submissions: {results.Count}");
+                sb.AppendLine();
+                sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                sb.AppendLine($"{"Student ID",-15} | MCQ Score | Time Spent");
+                sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+                foreach (var result in results.OrderBy(r => r.StudentId))
+                {
+                    double mcqPercent = result.TotalMcqMarks > 0
+                        ? (result.EarnedMcqMarks * 100.0 / result.TotalMcqMarks)
+                        : 0;
+
+                    sb.AppendLine($"{result.StudentId,-15} | {result.EarnedMcqMarks}/{result.TotalMcqMarks} ({mcqPercent:F1}%) | {result.TimeSpent.TotalMinutes:F0}m");
+                }
+
+                sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                sb.AppendLine();
+
+                // Statistics
+                double avgScore = results.Average(r =>
+                    r.TotalMcqMarks > 0 ? (r.EarnedMcqMarks * 100.0 / r.TotalMcqMarks) : 0);
+
+                sb.AppendLine($"Average MCQ Score: {avgScore:F1}%");
+                sb.AppendLine($"Highest Score: {results.Max(r => r.TotalMcqMarks > 0 ? (r.EarnedMcqMarks * 100.0 / r.TotalMcqMarks) : 0):F1}%");
+                sb.AppendLine($"Lowest Score: {results.Min(r => r.TotalMcqMarks > 0 ? (r.EarnedMcqMarks * 100.0 / r.TotalMcqMarks) : 0):F1}%");
+
+                GradingResultsText.Text = sb.ToString();
+                GradingResultsPanel.Visibility = Visibility.Visible;
+                GradingStatusText.Text = $"✓ Graded {results.Count} submissions successfully";
+
+                // Store results for export
+                Tag = results;
+            }
+            catch (Exception ex)
+            {
+                GradingStatusText.Text = $"Error: {ex.Message}";
+                MessageBox.Show($"Grading failed: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ExportGradingReport_Click(object sender, RoutedEventArgs e)
+        {
+            if (Tag is not List<GradingTool.GradingResult> results || results.Count == 0)
+            {
+                MessageBox.Show("No grading results to export. Grade an exam first.", "Info",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                gradingTool.GenerateReport(results);
+                gradingTool.ExportToCSV(results);
+                MessageBox.Show("Reports exported to Desktop!", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Export failed: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
         }
 
         private void UpdateStatus(string message, bool isError)
