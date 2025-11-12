@@ -1,330 +1,190 @@
-using SecureExamPlatform.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Management;
 
 namespace SecureExamPlatform.Core
 {
-    public class SessionStartResult
-    {
-        public bool Success { get; set; }
-        public string ErrorMessage { get; set; }
-        public ExamContent ExamContent { get; set; }
-        public bool IsResumed { get; set; }
-    }
-
-    public class ExamSession
-    {
-        public string SessionId { get; set; }
-        public string StudentId { get; set; }
-        public string ExamId { get; set; }
-        public DateTime StartTime { get; set; }
-        public bool IsActive { get; set; }
-    }
-
-    public class SessionEvent
-    {
-        public DateTime Timestamp { get; set; }
-        public string EventType { get; set; }
-        public string Message { get; set; }
-    }
-
     public class ExamSessionManager
     {
-        private readonly string _hardwareFingerprint;
-        private ExamSession _currentSession;
-        private readonly System.Threading.Timer _heartbeatTimer;
-        private readonly List<SessionEvent> _sessionEvents;
-        private readonly object _sessionLock = new object();
+        private readonly string _sessionsDirectory;
+        private ExamSession? _currentSession;
 
-        private readonly string _sessionFile;
-        private readonly string _sessionDirectory;
-        private readonly string _examsDirectory;
-
-        public ExamSessionManager(string examsDirectory = null)
+        public class ExamSession
         {
-            _hardwareFingerprint = GenerateHardwareFingerprint();
-            _sessionEvents = new List<SessionEvent>();
-            _heartbeatTimer = new System.Threading.Timer(SendHeartbeat, null, Timeout.Infinite, Timeout.Infinite);
+            public string SessionId { get; set; } = string.Empty;
+            public string StudentId { get; set; } = string.Empty;
+            public string ExamId { get; set; } = string.Empty;
+            public string DeviceId { get; set; } = string.Empty;
+            public DateTime StartTime { get; set; }
+            public DateTime? EndTime { get; set; }
+            public bool IsActive { get; set; }
+            public Dictionary<int, string> SavedAnswers { get; set; } = new Dictionary<int, string>();
+        }
 
-            // Setup directories
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            _sessionDirectory = Path.Combine(appData, "SecureExam");
-            _sessionFile = Path.Combine(_sessionDirectory, "session.lock");
+        public ExamSessionManager()
+        {
+            string appData = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SecureExam",
+                "Sessions"
+            );
+            Directory.CreateDirectory(appData);
+            _sessionsDirectory = appData;
+        }
 
-            // Use provided exams directory or default to app directory
-            _examsDirectory = examsDirectory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exams");
-
-            // Ensure directories exist
-            Directory.CreateDirectory(_sessionDirectory);
-            Directory.CreateDirectory(_examsDirectory);
-
-            // Clear any existing session file
-            if (File.Exists(_sessionFile))
+        public string CreateSession(string studentId, string examId, string deviceId)
+        {
+            var session = new ExamSession
             {
-                try
-                {
-                    File.Delete(_sessionFile);
-                }
-                catch { }
-            }
+                SessionId = GenerateSessionId(),
+                StudentId = studentId,
+                ExamId = examId,
+                DeviceId = deviceId,
+                StartTime = DateTime.Now,
+                IsActive = true,
+                SavedAnswers = new Dictionary<int, string>()
+            };
+
+            _currentSession = session;
+            SaveSession(session);
+            return session.SessionId;
         }
 
-        public ExamSession GetCurrentSession()
+        public void SaveAnswers(Dictionary<int, string> answers)
         {
-            return _currentSession;
+            if (_currentSession == null) return;
+
+            _currentSession.SavedAnswers = answers;
+            SaveSession(_currentSession);
         }
 
-        public bool IsSessionActive()
+        public Dictionary<int, string>? LoadSavedAnswers(string studentId, string examId)
         {
-            return _currentSession != null && _currentSession.IsActive;
+            var session = LoadSession(studentId, examId);
+            return session?.SavedAnswers;
         }
 
-        private string GenerateHardwareFingerprint()
+        public void EndSession()
         {
-            var components = new List<string>();
+            if (_currentSession == null) return;
 
+            _currentSession.IsActive = false;
+            _currentSession.EndTime = DateTime.Now;
+            SaveSession(_currentSession);
+            _currentSession = null;
+        }
+
+        public void TerminateOtherSessions(string studentId, string examId, string currentDeviceId)
+        {
             try
             {
-                using var searcher = new ManagementObjectSearcher("SELECT ProcessorId FROM Win32_Processor");
-                foreach (ManagementObject obj in searcher.Get())
+                var sessionFiles = Directory.GetFiles(_sessionsDirectory, $"{studentId}_{examId}_*.json");
+
+                foreach (var file in sessionFiles)
                 {
-                    components.Add(obj["ProcessorId"]?.ToString() ?? "");
-                    break;
-                }
-            }
-            catch { components.Add("NO_CPU"); }
-
-            try
-            {
-                using var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard");
-                foreach (ManagementObject obj in searcher.Get())
-                {
-                    components.Add(obj["SerialNumber"]?.ToString() ?? "");
-                    break;
-                }
-            }
-            catch { components.Add("NO_MB"); }
-
-            string combined = string.Join("|", components);
-            using var sha256 = SHA256.Create();
-            byte[] hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(combined));
-
-            return Convert.ToBase64String(hash);
-        }
-
-        public Task<SessionStartResult> StartSession(string studentId, string accessToken, string examId)
-        {
-            lock (_sessionLock)
-            {
-                // Load exam content first
-                var content = LoadExamContent(examId);
-                if (content == null)
-                {
-                    return Task.FromResult(new SessionStartResult
+                    try
                     {
-                        Success = false,
-                        ErrorMessage = $"Exam '{examId}' not found. Please ensure the exam file exists in the Exams folder."
-                    });
-                }
+                        string json = File.ReadAllText(file);
+                        var session = JsonSerializer.Deserialize<ExamSession>(json);
 
-                // Check if another session is active
-                if (_currentSession != null && _currentSession.IsActive)
-                {
-                    if (_currentSession.StudentId == studentId && _currentSession.ExamId == examId)
-                    {
-                        return Task.FromResult(new SessionStartResult
+                        if (session != null && session.DeviceId != currentDeviceId && session.IsActive)
                         {
-                            Success = true,
-                            ExamContent = content,
-                            IsResumed = true
-                        });
-                    }
+                            session.IsActive = false;
+                            session.EndTime = DateTime.Now;
 
-                    return Task.FromResult(new SessionStartResult
-                    {
-                        Success = false,
-                        ErrorMessage = "Another exam session is already active."
-                    });
-                }
-
-                // Start new session
-                _currentSession = new ExamSession
-                {
-                    SessionId = Guid.NewGuid().ToString(),
-                    StudentId = studentId,
-                    ExamId = examId,
-                    StartTime = DateTime.UtcNow,
-                    IsActive = true
-                };
-
-                try
-                {
-                    var sessionInfo = new
-                    {
-                        StudentId = studentId,
-                        ExamId = examId,
-                        StartTime = DateTime.UtcNow,
-                        AccessToken = accessToken
-                    };
-
-                    string json = JsonSerializer.Serialize(sessionInfo);
-                    File.WriteAllText(_sessionFile, json);
-
-                    // Start heartbeat every 60 seconds
-                    _heartbeatTimer.Change(TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
-
-                    _sessionEvents.Add(new SessionEvent
-                    {
-                        Timestamp = DateTime.Now,
-                        EventType = "SessionStart",
-                        Message = $"Session started for {studentId}"
-                    });
-
-                    return Task.FromResult(new SessionStartResult
-                    {
-                        Success = true,
-                        ExamContent = content,
-                        IsResumed = false
-                    });
-                }
-                catch (Exception ex)
-                {
-                    _currentSession = null;
-                    return Task.FromResult(new SessionStartResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Failed to start session: {ex.Message}"
-                    });
-                }
-            }
-        }
-
-        private ExamContent LoadExamContent(string examId)
-        {
-            try
-            {
-                // Try to find exam file
-                string examFile = Path.Combine(_examsDirectory, $"{examId}.json");
-
-                if (!File.Exists(examFile))
-                {
-                    // Try without extension
-                    examFile = Path.Combine(_examsDirectory, examId);
-                    if (!File.Exists(examFile))
-                    {
-                        // Try to find any file containing the exam ID
-                        var files = Directory.GetFiles(_examsDirectory, "*.json");
-                        foreach (var file in files)
-                        {
-                            try
+                            string updatedJson = JsonSerializer.Serialize(session, new JsonSerializerOptions
                             {
-                                var content = JsonSerializer.Deserialize<ExamContent>(File.ReadAllText(file));
-                                if (content?.ExamId == examId)
-                                {
-                                    examFile = file;
-                                    break;
-                                }
-                            }
-                            catch { }
-                        }
-
-                        if (!File.Exists(examFile))
-                            return null;
-                    }
-                }
-
-                string json = File.ReadAllText(examFile);
-                var examContent = JsonSerializer.Deserialize<ExamContent>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                // Convert duration from minutes to TimeSpan if needed
-                if (examContent != null && examContent.Duration.TotalMinutes == 0)
-                {
-                    // Try to parse from JSON manually if duration is 0
-                    using (JsonDocument doc = JsonDocument.Parse(json))
-                    {
-                        if (doc.RootElement.TryGetProperty("duration", out JsonElement durationElement))
-                        {
-                            if (durationElement.ValueKind == JsonValueKind.Number)
-                            {
-                                int minutes = durationElement.GetInt32();
-                                examContent.Duration = TimeSpan.FromMinutes(minutes);
-                            }
+                                WriteIndented = true
+                            });
+                            File.WriteAllText(file, updatedJson);
                         }
                     }
+                    catch
+                    {
+                        // Skip invalid files
+                    }
                 }
-
-                return examContent;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading exam: {ex.Message}");
-                return null;
+                LogError($"Error terminating sessions: {ex.Message}");
             }
         }
 
-        public void EndSession(bool submitted)
+        private void SaveSession(ExamSession session)
         {
-            lock (_sessionLock)
+            try
             {
-                if (_currentSession == null) return;
+                string filename = $"{session.StudentId}_{session.ExamId}_{session.DeviceId}.json";
+                string filepath = Path.Combine(_sessionsDirectory, filename);
 
-                try
+                string json = JsonSerializer.Serialize(session, new JsonSerializerOptions
                 {
-                    _currentSession.IsActive = false;
-                    _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    WriteIndented = true
+                });
 
-                    if (File.Exists(_sessionFile))
+                File.WriteAllText(filepath, json);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error saving session: {ex.Message}");
+            }
+        }
+
+        private ExamSession? LoadSession(string studentId, string examId)
+        {
+            try
+            {
+                var sessionFiles = Directory.GetFiles(_sessionsDirectory, $"{studentId}_{examId}_*.json");
+
+                foreach (var file in sessionFiles)
+                {
+                    try
                     {
-                        File.Delete(_sessionFile);
+                        string json = File.ReadAllText(file);
+                        var session = JsonSerializer.Deserialize<ExamSession>(json);
+
+                        if (session != null && session.IsActive)
+                        {
+                            return session;
+                        }
                     }
-
-                    _sessionEvents.Add(new SessionEvent
+                    catch
                     {
-                        Timestamp = DateTime.Now,
-                        EventType = "SessionEnd",
-                        Message = $"Session ended. Submitted: {submitted}"
-                    });
-
-                    Console.WriteLine($"Session ended for {_currentSession.StudentId}. Submitted: {submitted}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error ending session: {ex.Message}");
-                }
-                finally
-                {
-                    _currentSession = null;
+                        continue;
+                    }
                 }
             }
-        }
-
-        private void SendHeartbeat(object state)
-        {
-            if (_currentSession == null || !_currentSession.IsActive) return;
-
-            Console.WriteLine($"[HEARTBEAT] Session {_currentSession.SessionId} is active.");
-
-            _sessionEvents.Add(new SessionEvent
+            catch (Exception ex)
             {
-                Timestamp = DateTime.Now,
-                EventType = "Heartbeat",
-                Message = "Session heartbeat sent."
-            });
+                LogError($"Error loading session: {ex.Message}");
+            }
+
+            return null;
         }
 
-        public List<SessionEvent> GetSessionEvents()
+        private string GenerateSessionId()
         {
-            return new List<SessionEvent>(_sessionEvents);
+            byte[] randomBytes = new byte[16];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomBytes);
+            }
+            return Convert.ToBase64String(randomBytes).Replace("/", "_").Replace("+", "-").Substring(0, 22);
+        }
+
+        private void LogError(string message)
+        {
+            try
+            {
+                string logPath = Path.Combine(_sessionsDirectory, "session_errors.log");
+                File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
+            }
+            catch { }
         }
     }
 }

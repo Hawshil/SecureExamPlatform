@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
@@ -6,6 +6,8 @@
         <Nullable>disable</Nullable>
         <ImplicitUsings>disable</ImplicitUsings>
         <UseWPF>true</UseWPF>
+        <ApplicationIcon />
+        <StartupObject>SecureExamPlatform.UI.App</StartupObject>
         <UseWindowsForms>true</UseWindowsForms>
 
         <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -27,13 +29,6 @@
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
         <Optimize>true</Optimize>
     </PropertyGroup>
-
-    <ItemGroup>
-      <Content Include="bin\Debug\net8.0-windows\Exams\EXAM001.json" />
-      <None Update="exam_template.csv">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.0" />

@@ -1,0 +1,89 @@
+﻿<Window x:Class="SecureExam.Student.StudentLoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Secure Exam - Student Login"
+        Height="480"
+        Width="420"
+        MinHeight="450"
+        MinWidth="400"
+        WindowStartupLocation="CenterScreen"
+        Background="#1a1a1a"
+        ResizeMode="CanMinimize">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="120"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#2c2c2c">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="🔐 Secure Exam Platform" 
+                           FontSize="22" 
+                           FontWeight="Bold" 
+                           Foreground="White"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,5"/>
+
+                <TextBlock Text="Student Login" 
+                           FontSize="14" 
+                           Foreground="#999"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="35,20">
+            <TextBlock Text="Student ID:" 
+                       Foreground="White" 
+                       FontSize="13" 
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,5"/>
+            <TextBox x:Name="StudentIdBox" 
+                     Height="40" 
+                     FontSize="15" 
+                     Padding="10,8"
+                     Margin="0,0,0,20"
+                     CharacterCasing="Upper"/>
+
+            <TextBlock Text="Login Code:" 
+                       Foreground="White" 
+                       FontSize="13" 
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,5"/>
+            <TextBox x:Name="LoginCodeBox" 
+                     Height="40" 
+                     FontSize="15" 
+                     Padding="10,8"
+                     Margin="0,0,0,25"
+                     CharacterCasing="Upper"/>
+
+            <Button x:Name="LoginButton"
+                    Content="Start Exam" 
+                    Height="50" 
+                    FontSize="16"
+                    FontWeight="Bold"
+                    Background="#4caf50"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Click="LoginButton_Click"
+                    Cursor="Hand"/>
+
+            <TextBlock x:Name="StatusText" 
+                       Text="" 
+                       Foreground="#f44336" 
+                       FontSize="12"
+                       HorizontalAlignment="Center"
+                       Margin="0,15,0,0"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="#2c2c2c">
+            <TextBlock Text="⚠️ Close all applications before starting" 
+                       Foreground="#ff9800" 
+                       FontSize="11"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Border>
+    </Grid>
+</Window>

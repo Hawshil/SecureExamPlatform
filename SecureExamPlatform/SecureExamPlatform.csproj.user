@@ -2,16 +2,19 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup />
   <ItemGroup>
+    <Compile Update="UI\CalculatorWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="UI\ExitPasswordDialog.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="UI\FacultyDashboard.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Update="UI\LauncherWindow.xaml.cs">
+    <Compile Update="UI\SecureExamWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Update="UI\LoginWindow.xaml.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Update="UI\SimplifiedLoginWindow.xaml.cs">
+    <Compile Update="UI\StudentLoginWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

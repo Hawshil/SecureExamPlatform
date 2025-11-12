@@ -1,81 +1,90 @@
-using System;
-using System.Collections.Generic;
+﻿using System;
+using System.Linq;
 
 namespace SecureExamPlatform.Grading
 {
-    /// <summary>
-    /// CLI interface for the grading tool that can be called from other parts of the application
-    /// </summary>
-    public static class GradingToolCLI
+    public class GradingToolCLI
     {
-        /// <summary>
-        /// Run the grading tool in CLI mode
-        /// </summary>
-        public static void RunGrading(string[] args)
+        public static void Main(string[] args)
         {
-            Console.WriteLine("??????????????????????????????????????????????????????????");
-            Console.WriteLine("?   SECURE EXAM PLATFORM - AUTOMATIC GRADING TOOL       ?");
-            Console.WriteLine("??????????????????????????????????????????????????????????");
+            Console.WriteLine("═══════════════════════════════════════════════════");
+            Console.WriteLine("      Secure Exam Platform - Grading Tool CLI");
+            Console.WriteLine("═══════════════════════════════════════════════════");
             Console.WriteLine();
 
-            var grader = new GradingTool();
+            var gradingTool = new GradingTool();
+            var submissions = gradingTool.GetSubmissionFiles();
 
-            if (args.Length > 0)
+            if (submissions.Count == 0)
             {
-                // Command-line mode
-                string examId = args[0];
-                GradeExamCLI(grader, examId);
+                Console.WriteLine("No submissions found.");
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey();
+                return;
+            }
+
+            Console.WriteLine($"Found {submissions.Count} submission(s):");
+            Console.WriteLine();
+
+            for (int i = 0; i < submissions.Count; i++)
+            {
+                Console.WriteLine($"{i + 1}. {System.IO.Path.GetFileName(submissions[i])}");
+            }
+
+            Console.WriteLine();
+            Console.Write("Enter submission number to grade (or 'all' to grade all): ");
+            string input = Console.ReadLine();
+
+            if (input.ToLower() == "all")
+            {
+                Console.WriteLine();
+                Console.WriteLine("Grading all submissions...");
+                Console.WriteLine();
+
+                foreach (var submission in submissions)
+                {
+                    GradeSubmissionFile(gradingTool, submission);
+                }
+            }
+            else if (int.TryParse(input, out int index) && index > 0 && index <= submissions.Count)
+            {
+                Console.WriteLine();
+                GradeSubmissionFile(gradingTool, submissions[index - 1]);
             }
             else
             {
-                // Interactive mode
-                GradeExamInteractive(grader);
-            }
-        }
-
-        private static void GradeExamCLI(GradingTool grader, string examId)
-        {
-            Console.WriteLine($"Grading exam: {examId}");
-            var results = grader.GradeExam(examId);
-
-            if (results.Count > 0)
-            {
-                grader.GenerateReport(results);
-                grader.ExportToCSV(results);
-            }
-        }
-
-        private static void GradeExamInteractive(GradingTool grader)
-        {
-            Console.Write("Enter Exam ID to grade: ");
-            string examId = Console.ReadLine()?.Trim();
-
-            if (string.IsNullOrEmpty(examId))
-            {
-                Console.WriteLine("Error: Exam ID is required");
-                return;
+                Console.WriteLine("Invalid input.");
             }
 
-            Console.WriteLine($"\nGrading exam: {examId}");
-            Console.WriteLine("Please wait...\n");
-
-            var results = grader.GradeExam(examId);
-
-            if (results.Count == 0)
-            {
-                Console.WriteLine("No submissions found or error occurred.");
-                return;
-            }
-
-            Console.WriteLine($"? Graded {results.Count} submissions");
-            Console.WriteLine("\nGenerating reports...");
-
-            grader.GenerateReport(results);
-            grader.ExportToCSV(results);
-
-            Console.WriteLine("\n? Grading complete!");
-            Console.WriteLine("\nPress any key to exit...");
+            Console.WriteLine();
+            Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
+        }
+
+        private static void GradeSubmissionFile(GradingTool gradingTool, string submissionFile)
+        {
+            try
+            {
+                Console.WriteLine($"Grading: {System.IO.Path.GetFileName(submissionFile)}");
+
+                var result = gradingTool.GradeSubmission(submissionFile);
+
+                Console.WriteLine($"✓ Graded successfully!");
+                Console.WriteLine($"  Student: {result.StudentId}");
+                Console.WriteLine($"  Score: {result.EarnedPoints}/{result.TotalPoints} ({result.Percentage:F2}%)");
+                Console.WriteLine($"  Grade: {result.Grade}");
+                Console.WriteLine();
+
+                // Generate report
+                string report = gradingTool.GenerateGradeReport(result);
+                string reportPath = submissionFile.Replace(".json", "_report.txt");
+                gradingTool.ExportGradeReport(result, reportPath);
+                Console.WriteLine($"  Report saved: {System.IO.Path.GetFileName(reportPath)}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"✗ Error: {ex.Message}");
+            }
         }
     }
 }

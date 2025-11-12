@@ -6408,6 +6408,7 @@
       "Microsoft.NET.Test.Sdk >= 17.8.0",
       "Moq >= 4.20.70",
       "SecureExamPlatform >= 1.0.0",
+      "System.Management >= 8.0.0",
       "coverlet.collector >= 6.0.0",
       "xunit >= 2.6.2",
       "xunit.runner.visualstudio >= 2.5.4"
@@ -6478,6 +6479,10 @@
           "Moq": {
             "target": "Package",
             "version": "[4.20.70, )"
+          },
+          "System.Management": {
+            "target": "Package",
+            "version": "[8.0.0, )"
           },
           "coverlet.collector": {
             "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",

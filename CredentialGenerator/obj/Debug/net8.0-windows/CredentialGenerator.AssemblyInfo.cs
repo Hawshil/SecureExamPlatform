@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CredentialGenerator")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+30e9f81afc13f456ce144baf3eaeb53f593cd4a1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d2cf2cf3e9a32e4a7c588774cae111cfd51baa66")]
 [assembly: System.Reflection.AssemblyProductAttribute("CredentialGenerator")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CredentialGenerator")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

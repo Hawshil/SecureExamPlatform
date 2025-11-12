@@ -1,0 +1,230 @@
+﻿<Window x:Class="SecureExamPlatform.UI.SecureExamWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Secure Exam"
+        WindowStyle="None"
+        WindowState="Maximized"
+        ResizeMode="NoResize"
+        Topmost="True"
+        Background="#1a1a1a"
+        AllowsTransparency="False"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+        <!-- Non-selectable TextBlock Style -->
+        <Style x:Key="NonSelectableText" TargetType="TextBlock">
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="70"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="90"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Section -->
+        <Border Grid.Row="0" Background="#2c2c2c" BorderBrush="#444" BorderThickness="0,0,0,2">
+            <Grid Margin="20,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Exam Info -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="ExamTitleText" 
+                               Text="Exam Title" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="White"
+                               Style="{StaticResource NonSelectableText}"/>
+                    <TextBlock x:Name="StudentInfoText"
+                               Text="Student: LOADING..." 
+                               FontSize="12" 
+                               Foreground="#aaa"
+                               Style="{StaticResource NonSelectableText}"/>
+                </StackPanel>
+
+                <!-- Calculator Button -->
+                <Button Grid.Column="1"
+                        x:Name="CalculatorButton"
+                        Content="🔢 Calculator"
+                        Width="140"
+                        Height="45"
+                        Background="#2196F3"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="14"
+                        Margin="0,0,15,0"
+                        Click="CalculatorButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#42A5F5"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- Timer -->
+                <Border Grid.Column="2" 
+                        Background="#f44336" 
+                        CornerRadius="8" 
+                        Padding="20,10"
+                        VerticalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="⏱ TIME LEFT" 
+                                   FontSize="10" 
+                                   Foreground="White" 
+                                   HorizontalAlignment="Center"
+                                   Style="{StaticResource NonSelectableText}"/>
+                        <TextBlock x:Name="TimerText" 
+                                   Text="00:00:00" 
+                                   FontSize="20" 
+                                   FontWeight="Bold" 
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   Style="{StaticResource NonSelectableText}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <ScrollViewer Grid.Row="1" 
+                      VerticalScrollBarVisibility="Auto"
+                      Background="#1a1a1a"
+                      Padding="30">
+            <StackPanel x:Name="QuestionsPanel">
+                <!-- Questions will be loaded here dynamically -->
+                <TextBlock Text="Loading exam..." 
+                           FontSize="16" 
+                           Foreground="#888"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Style="{StaticResource NonSelectableText}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer Section -->
+        <Border Grid.Row="2" Background="#2c2c2c" BorderBrush="#444" BorderThickness="0,2,0,0">
+            <Grid Margin="30,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Status -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="StatusText" 
+                               Text="📝 Answer all questions before submitting" 
+                               FontSize="13" 
+                               Foreground="#aaa"
+                               Style="{StaticResource NonSelectableText}"/>
+                    <TextBlock x:Name="ProgressText"
+                               Text="Progress: 0/0 answered"
+                               FontSize="11"
+                               Foreground="#666"
+                               Margin="0,3,0,0"
+                               Style="{StaticResource NonSelectableText}"/>
+                </StackPanel>
+
+                <!-- Refresh Button -->
+                <Button Grid.Column="1"
+                        x:Name="RefreshButton"
+                        Content="🔄 Refresh (Alt+R)"
+                        Width="150"
+                        Height="50"
+                        Background="#757575"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="12"
+                        Margin="0,0,15,0"
+                        Click="RefreshButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#9e9e9e"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- Submit Button -->
+                <Button Grid.Column="2"
+                        x:Name="SubmitButton"
+                        Content="✓ SUBMIT EXAM"
+                        Width="180"
+                        Height="50"
+                        Background="#4caf50"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Click="SubmitButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#66bb6a"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="#555"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Overlay for blocking interactions -->
+        <Border x:Name="BlockingOverlay"
+                Grid.RowSpan="3"
+                Background="#80000000"
+                Visibility="Collapsed">
+            <TextBlock Text="⏳ Processing..."
+                       FontSize="24"
+                       Foreground="White"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Border>
+    </Grid>
+</Window>

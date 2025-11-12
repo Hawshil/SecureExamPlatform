@@ -1,390 +1,410 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using SecureExamPlatform.Models;
 
 namespace SecureExamPlatform.Grading
 {
-    /// <summary>
-    /// Automatic grading tool for MCQ questions and submission analysis
-    /// </summary>
     public class GradingTool
     {
-        private string examsDirectory;
         private string submissionsDirectory;
+        private string examsDirectory;
 
-        public GradingTool()
-        {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            submissionsDirectory = Path.Combine(appData, "SecureExam", "Submissions");
-
-            string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            examsDirectory = Path.Combine(appDirectory, "Exams");
-        }
-
-        public class GradingResult
+        public class GradeResult
         {
             public string StudentId { get; set; }
             public string ExamId { get; set; }
-            public int TotalMcqMarks { get; set; }
-            public int EarnedMcqMarks { get; set; }
-            public int TotalSubjectiveMarks { get; set; }
-            public int QuestionsAnswered { get; set; }
             public int TotalQuestions { get; set; }
-            public Dictionary<string, QuestionResult> QuestionResults { get; set; }
-            public DateTime SubmissionTime { get; set; }
-            public TimeSpan TimeSpent { get; set; }
+            public int CorrectAnswers { get; set; }
+            public int TotalPoints { get; set; }
+            public int EarnedPoints { get; set; }
+            public double Percentage { get; set; }
+            public string Grade { get; set; }
+            public List<QuestionResult> QuestionResults { get; set; }
+            public DateTime GradedAt { get; set; }
+            public int TimeTaken { get; set; }
         }
 
         public class QuestionResult
         {
-            public string QuestionId { get; set; }
+            public int QuestionNumber { get; set; }
             public string QuestionText { get; set; }
-            public string QuestionType { get; set; }
             public string StudentAnswer { get; set; }
             public string CorrectAnswer { get; set; }
             public bool IsCorrect { get; set; }
-            public int MarksAwarded { get; set; }
-            public int TotalMarks { get; set; }
+            public int Points { get; set; }
+            public int EarnedPoints { get; set; }
+            public string QuestionType { get; set; }
         }
 
-        /// <summary>
-        /// Grade all submissions for a specific exam
-        /// </summary>
-        public List<GradingResult> GradeExam(string examId)
+        public GradingTool()
         {
-            var results = new List<GradingResult>();
+            string appData = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SecureExam"
+            );
 
-            // Load exam
-            var exam = LoadExam(examId);
-            if (exam == null)
-            {
-                Console.WriteLine($"Error: Exam '{examId}' not found");
-                return results;
-            }
+            submissionsDirectory = Path.Combine(appData, "Submissions");
+            examsDirectory = Path.Combine(appData, "Exams");
 
-            // Find all submissions for this exam
-            var submissionFiles = Directory.GetFiles(submissionsDirectory, $"*{examId}*.json");
-
-            if (submissionFiles.Length == 0)
-            {
-                Console.WriteLine($"No submissions found for exam '{examId}'");
-                return results;
-            }
-
-            foreach (var file in submissionFiles)
-            {
-                try
-                {
-                    var result = GradeSubmission(file, exam);
-                    if (result != null)
-                    {
-                        results.Add(result);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error grading {file}: {ex.Message}");
-                }
-            }
-
-            return results;
+            Directory.CreateDirectory(submissionsDirectory);
+            Directory.CreateDirectory(examsDirectory);
         }
 
-        /// <summary>
-        /// Grade a single submission
-        /// </summary>
-        public GradingResult GradeSubmission(string submissionFile, ExamContent exam)
-        {
-            var json = File.ReadAllText(submissionFile);
-            var submission = JsonSerializer.Deserialize<ExamSubmission>(json);
-
-            if (submission == null)
-            {
-                return null;
-            }
-
-            var result = new GradingResult
-            {
-                StudentId = submission.StudentId,
-                ExamId = submission.ExamId,
-                SubmissionTime = submission.SubmissionTime,
-                TimeSpent = submission.TimeSpent,
-                QuestionResults = new Dictionary<string, QuestionResult>(),
-                TotalQuestions = exam.Questions.Count,
-                QuestionsAnswered = submission.Answers.Count
-            };
-
-            // Grade each question
-            foreach (var question in exam.Questions)
-            {
-                var questionResult = GradeQuestion(question, submission.Answers);
-                result.QuestionResults[question.Id] = questionResult;
-
-                if (question.Type == QuestionType.MultipleChoice)
-                {
-                    result.TotalMcqMarks += question.Points;
-                    if (questionResult.IsCorrect)
-                    {
-                        result.EarnedMcqMarks += question.Points;
-                    }
-                }
-                else
-                {
-                    result.TotalSubjectiveMarks += question.Points;
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Grade individual question
-        /// </summary>
-        private QuestionResult GradeQuestion(Question question, Dictionary<string, string> answers)
-        {
-            var result = new QuestionResult
-            {
-                QuestionId = question.Id,
-                QuestionText = question.Text,
-                QuestionType = question.Type.ToString(),
-                TotalMarks = question.Points,
-                MarksAwarded = 0,
-                IsCorrect = false
-            };
-
-            // Check if student answered this question
-            if (!answers.TryGetValue(question.Id, out string studentAnswer))
-            {
-                result.StudentAnswer = "[Not Answered]";
-                return result;
-            }
-
-            result.StudentAnswer = studentAnswer;
-
-            // Grade based on question type
-            if (question.Type == QuestionType.MultipleChoice)
-            {
-                // Parse the answer index
-                if (int.TryParse(studentAnswer, out int selectedIndex))
-                {
-                    if (selectedIndex >= 0 && selectedIndex < question.Options.Count)
-                    {
-                        string selectedOption = question.Options[selectedIndex];
-                        result.StudentAnswer = $"{selectedOption} (Option {selectedIndex + 1})";
-                        result.CorrectAnswer = question.CorrectAnswer;
-
-                        // Check if correct
-                        if (selectedOption == question.CorrectAnswer ||
-                            selectedOption.Trim().Equals(question.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase))
-                        {
-                            result.IsCorrect = true;
-                            result.MarksAwarded = question.Points;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // Subjective questions need manual grading
-                result.StudentAnswer = studentAnswer;
-                result.CorrectAnswer = "[Requires Manual Grading]";
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Load exam from file
-        /// </summary>
-        private ExamContent LoadExam(string examId)
+        public List<string> GetSubmissionFiles()
         {
             try
             {
-                var examFile = Path.Combine(examsDirectory, $"{examId}.json");
+                return Directory.GetFiles(submissionsDirectory, "*.json").ToList();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+        }
 
-                if (!File.Exists(examFile))
+        public GradeResult GradeSubmission(string submissionFilePath)
+        {
+            try
+            {
+                // Load submission
+                string submissionJson = File.ReadAllText(submissionFilePath);
+                var submission = JsonSerializer.Deserialize<ExamSubmission>(submissionJson);
+
+                if (submission == null)
                 {
-                    // Try to find the exam in all JSON files
-                    var files = Directory.GetFiles(examsDirectory, "*.json");
-                    foreach (var file in files)
-                    {
-                        var content = JsonSerializer.Deserialize<ExamContent>(
-                            File.ReadAllText(file),
-                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                        if (content?.ExamId == examId)
-                        {
-                            return content;
-                        }
-                    }
-                    return null;
+                    throw new Exception("Failed to load submission");
                 }
 
-                string json = File.ReadAllText(examFile);
-                return JsonSerializer.Deserialize<ExamContent>(json,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                // Load exam
+                string examPath = Path.Combine(examsDirectory, $"{submission.ExamId}.json");
+                if (!File.Exists(examPath))
+                {
+                    throw new Exception($"Exam file not found: {submission.ExamId}");
+                }
+
+                string examJson = File.ReadAllText(examPath);
+                var exam = JsonSerializer.Deserialize<ExamContent>(examJson);
+
+                if (exam == null || exam.Questions == null)
+                {
+                    throw new Exception("Failed to load exam content");
+                }
+
+                // Grade the submission
+                var result = new GradeResult
+                {
+                    StudentId = submission.StudentId,
+                    ExamId = submission.ExamId,
+                    TotalQuestions = exam.Questions.Count,
+                    GradedAt = DateTime.Now,
+                    TimeTaken = submission.TimeTaken,
+                    QuestionResults = new List<QuestionResult>()
+                };
+
+                int correctAnswers = 0;
+                int totalPoints = 0;
+                int earnedPoints = 0;
+
+                for (int i = 0; i < exam.Questions.Count; i++)
+                {
+                    var question = exam.Questions[i];
+                    totalPoints += question.Points;
+
+                    string studentAnswer = string.Empty;
+                    if (submission.Answers != null && submission.Answers.ContainsKey(i))
+                    {
+                        studentAnswer = submission.Answers[i] ?? string.Empty;
+                    }
+
+                    bool isCorrect = CheckAnswer(question, studentAnswer);
+                    int pointsEarned = isCorrect ? question.Points : 0;
+
+                    if (isCorrect)
+                    {
+                        correctAnswers++;
+                        earnedPoints += question.Points;
+                    }
+
+                    result.QuestionResults.Add(new QuestionResult
+                    {
+                        QuestionNumber = i + 1,
+                        QuestionText = question.Text ?? string.Empty,
+                        StudentAnswer = studentAnswer,
+                        CorrectAnswer = question.CorrectAnswer ?? string.Empty,
+                        IsCorrect = isCorrect,
+                        Points = question.Points,
+                        EarnedPoints = pointsEarned,
+                        QuestionType = question.Type ?? "UNKNOWN"
+                    });
+                }
+
+                result.CorrectAnswers = correctAnswers;
+                result.TotalPoints = totalPoints;
+                result.EarnedPoints = earnedPoints;
+                result.Percentage = totalPoints > 0 ? (double)earnedPoints / totalPoints * 100 : 0;
+                result.Grade = CalculateGrade(result.Percentage);
+
+                // Save grading result
+                SaveGradingResult(result);
+
+                return result;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading exam: {ex.Message}");
-                return null;
+                throw new Exception($"Error grading submission: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Generate a detailed grading report
-        /// </summary>
-        public void GenerateReport(List<GradingResult> results, string outputPath = null)
+        private bool CheckAnswer(Question question, string studentAnswer)
         {
-            if (results == null || results.Count == 0)
+            if (string.IsNullOrWhiteSpace(studentAnswer))
+                return false;
+
+            if (question.Type == "MCQ")
             {
-                Console.WriteLine("No results to report");
-                return;
+                // For MCQ, exact match required
+                return NormalizeAnswer(studentAnswer) == NormalizeAnswer(question.CorrectAnswer ?? string.Empty);
+            }
+            else if (question.Type == "SHORT")
+            {
+                // For short answers, check for keyword matches
+                string normalizedStudent = NormalizeAnswer(studentAnswer);
+                string normalizedCorrect = NormalizeAnswer(question.CorrectAnswer ?? string.Empty);
+
+                // Exact match
+                if (normalizedStudent == normalizedCorrect)
+                    return true;
+
+                // Keyword matching (at least 70% of keywords present)
+                var correctKeywords = normalizedCorrect.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var studentKeywords = normalizedStudent.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (correctKeywords.Length == 0)
+                    return false;
+
+                int matchCount = correctKeywords.Count(kw => studentKeywords.Contains(kw));
+                double matchPercentage = (double)matchCount / correctKeywords.Length;
+
+                return matchPercentage >= 0.7;
+            }
+            else if (question.Type == "LONG")
+            {
+                // For long answers, require manual grading
+                // For now, just check if answer is provided
+                return !string.IsNullOrWhiteSpace(studentAnswer);
             }
 
-            var report = new System.Text.StringBuilder();
-            report.AppendLine("?????????????????????????????????????????????????????????????");
-            report.AppendLine("?         SECURE EXAM PLATFORM - GRADING REPORT            ?");
-            report.AppendLine("?????????????????????????????????????????????????????????????");
-            report.AppendLine();
-            report.AppendLine($"Exam ID: {results[0].ExamId}");
-            report.AppendLine($"Total Submissions: {results.Count}");
-            report.AppendLine($"Report Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            report.AppendLine();
-            report.AppendLine(new string('=', 80));
-            report.AppendLine();
+            return false;
+        }
 
-            // Sort by student ID
-            var sortedResults = results.OrderBy(r => r.StudentId).ToList();
+        private string NormalizeAnswer(string answer)
+        {
+            if (string.IsNullOrWhiteSpace(answer))
+                return string.Empty;
 
-            foreach (var result in sortedResults)
+            return answer.Trim().ToLower()
+                .Replace("\n", " ")
+                .Replace("\r", "")
+                .Replace("  ", " ");
+        }
+
+        private string CalculateGrade(double percentage)
+        {
+            if (percentage >= 90) return "A+";
+            if (percentage >= 85) return "A";
+            if (percentage >= 80) return "A-";
+            if (percentage >= 75) return "B+";
+            if (percentage >= 70) return "B";
+            if (percentage >= 65) return "B-";
+            if (percentage >= 60) return "C+";
+            if (percentage >= 55) return "C";
+            if (percentage >= 50) return "C-";
+            if (percentage >= 45) return "D";
+            return "F";
+        }
+
+        private void SaveGradingResult(GradeResult result)
+        {
+            try
             {
-                report.AppendLine($"STUDENT ID: {result.StudentId}");
-                report.AppendLine(new string('-', 80));
-                report.AppendLine($"Submission Time: {result.SubmissionTime:yyyy-MM-dd HH:mm:ss}");
-                report.AppendLine($"Time Spent: {result.TimeSpent.Hours}h {result.TimeSpent.Minutes}m");
-                report.AppendLine($"Questions Answered: {result.QuestionsAnswered}/{result.TotalQuestions}");
-                report.AppendLine();
+                string gradesDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "SecureExam",
+                    "Grades"
+                );
+                Directory.CreateDirectory(gradesDir);
 
-                // MCQ Score
-                double mcqPercentage = result.TotalMcqMarks > 0
-                    ? (result.EarnedMcqMarks * 100.0 / result.TotalMcqMarks)
-                    : 0;
+                string filename = $"{result.StudentId}_{result.ExamId}_grade_{DateTime.Now:yyyyMMddHHmmss}.json";
+                string filepath = Path.Combine(gradesDir, filename);
 
-                report.AppendLine($"MCQ Score: {result.EarnedMcqMarks}/{result.TotalMcqMarks} ({mcqPercentage:F1}%)");
-
-                if (result.TotalSubjectiveMarks > 0)
+                string json = JsonSerializer.Serialize(result, new JsonSerializerOptions
                 {
-                    report.AppendLine($"Subjective Questions: {result.TotalSubjectiveMarks} marks (Manual Grading Required)");
-                }
+                    WriteIndented = true
+                });
 
-                report.AppendLine();
-                report.AppendLine("Question-wise Analysis:");
-                report.AppendLine();
+                File.WriteAllText(filepath, json);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving grade: {ex.Message}");
+            }
+        }
 
-                foreach (var qResult in result.QuestionResults.Values.OrderBy(q => q.QuestionId))
+        public string GenerateGradeReport(GradeResult result)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine("             EXAM GRADE REPORT");
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine();
+            sb.AppendLine($"Student ID:      {result.StudentId}");
+            sb.AppendLine($"Exam ID:         {result.ExamId}");
+            sb.AppendLine($"Graded At:       {result.GradedAt:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"Time Taken:      {result.TimeTaken} minutes");
+            sb.AppendLine();
+            sb.AppendLine("───────────────────────────────────────────────────────");
+            sb.AppendLine("                  SUMMARY");
+            sb.AppendLine("───────────────────────────────────────────────────────");
+            sb.AppendLine($"Total Questions: {result.TotalQuestions}");
+            sb.AppendLine($"Correct Answers: {result.CorrectAnswers}");
+            sb.AppendLine($"Total Points:    {result.TotalPoints}");
+            sb.AppendLine($"Earned Points:   {result.EarnedPoints}");
+            sb.AppendLine($"Percentage:      {result.Percentage:F2}%");
+            sb.AppendLine($"Grade:           {result.Grade}");
+            sb.AppendLine();
+            sb.AppendLine("───────────────────────────────────────────────────────");
+            sb.AppendLine("              DETAILED RESULTS");
+            sb.AppendLine("───────────────────────────────────────────────────────");
+
+            foreach (var qr in result.QuestionResults)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Question {qr.QuestionNumber} ({qr.QuestionType}):");
+                sb.AppendLine($"  {qr.QuestionText}");
+                sb.AppendLine($"  Student Answer:  {qr.StudentAnswer}");
+                sb.AppendLine($"  Correct Answer:  {qr.CorrectAnswer}");
+                sb.AppendLine($"  Result:          {(qr.IsCorrect ? "✓ CORRECT" : "✗ INCORRECT")}");
+                sb.AppendLine($"  Points:          {qr.EarnedPoints}/{qr.Points}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine(GenerateRecommendations(result));
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+
+            return sb.ToString();
+        }
+
+        private string GenerateRecommendations(GradeResult result)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("PERFORMANCE RECOMMENDATIONS:");
+
+            if (result.Percentage >= 90)
+            {
+                sb.AppendLine("✓ Excellent performance! Keep up the great work.");
+            }
+            else if (result.Percentage >= 75)
+            {
+                sb.AppendLine("✓ Good performance. Review questions you missed for improvement.");
+            }
+            else if (result.Percentage >= 60)
+            {
+                sb.AppendLine("⚠ Satisfactory performance. More practice recommended.");
+            }
+            else
+            {
+                sb.AppendLine("⚠ Needs improvement. Please review the material thoroughly.");
+            }
+
+            // Analyze question types
+            var mcqCorrect = result.QuestionResults.Count(q => q.QuestionType == "MCQ" && q.IsCorrect);
+            var mcqTotal = result.QuestionResults.Count(q => q.QuestionType == "MCQ");
+
+            if (mcqTotal > 0)
+            {
+                double mcqPercentage = (double)mcqCorrect / mcqTotal * 100;
+                sb.AppendLine($"• Multiple Choice: {mcqCorrect}/{mcqTotal} ({mcqPercentage:F1}%)");
+            }
+
+            var shortCorrect = result.QuestionResults.Count(q => q.QuestionType == "SHORT" && q.IsCorrect);
+            var shortTotal = result.QuestionResults.Count(q => q.QuestionType == "SHORT");
+
+            if (shortTotal > 0)
+            {
+                double shortPercentage = (double)shortCorrect / shortTotal * 100;
+                sb.AppendLine($"• Short Answer: {shortCorrect}/{shortTotal} ({shortPercentage:F1}%)");
+            }
+
+            return sb.ToString();
+        }
+
+        public void ExportGradeReport(GradeResult result, string filepath)
+        {
+            try
+            {
+                string report = GenerateGradeReport(result);
+                File.WriteAllText(filepath, report);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error exporting report: {ex.Message}");
+            }
+        }
+
+        public List<GradeResult> GetAllGrades()
+        {
+            var grades = new List<GradeResult>();
+
+            try
+            {
+                string gradesDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "SecureExam",
+                    "Grades"
+                );
+
+                if (!Directory.Exists(gradesDir))
+                    return grades;
+
+                var gradeFiles = Directory.GetFiles(gradesDir, "*_grade_*.json");
+
+                foreach (var file in gradeFiles)
                 {
-                    string status = qResult.QuestionType == "MultipleChoice"
-                        ? (qResult.IsCorrect ? "? CORRECT" : "? INCORRECT")
-                        : "? PENDING";
-
-                    report.AppendLine($"  [{qResult.QuestionId}] {status}");
-                    report.AppendLine($"  Question: {qResult.QuestionText}");
-
-                    if (qResult.QuestionType == "MultipleChoice")
+                    try
                     {
-                        report.AppendLine($"  Student Answer: {qResult.StudentAnswer}");
-                        report.AppendLine($"  Correct Answer: {qResult.CorrectAnswer}");
-                        report.AppendLine($"  Marks: {qResult.MarksAwarded}/{qResult.TotalMarks}");
-                    }
-                    else
-                    {
-                        int answerLength = qResult.StudentAnswer?.Length ?? 0;
-                        report.AppendLine($"  Answer Length: {answerLength} characters");
-                        report.AppendLine($"  Marks: [Manual Grading Required] /{qResult.TotalMarks}");
-
-                        // Show first 100 characters of answer
-                        if (answerLength > 0)
+                        string json = File.ReadAllText(file);
+                        var grade = JsonSerializer.Deserialize<GradeResult>(json);
+                        if (grade != null)
                         {
-                            string preview = qResult.StudentAnswer.Length > 100
-                                ? qResult.StudentAnswer.Substring(0, 100) + "..."
-                                : qResult.StudentAnswer;
-                            report.AppendLine($"  Preview: {preview}");
+                            grades.Add(grade);
                         }
                     }
-
-                    report.AppendLine();
+                    catch
+                    {
+                        continue;
+                    }
                 }
-
-                report.AppendLine(new string('=', 80));
-                report.AppendLine();
             }
-
-            // Summary statistics
-            report.AppendLine();
-            report.AppendLine("?????????????????????????????????????????????????????????????");
-            report.AppendLine("?                    SUMMARY STATISTICS                     ?");
-            report.AppendLine("?????????????????????????????????????????????????????????????");
-            report.AppendLine();
-
-            double avgMcqScore = results.Average(r =>
-                r.TotalMcqMarks > 0 ? (r.EarnedMcqMarks * 100.0 / r.TotalMcqMarks) : 0);
-
-            report.AppendLine($"Average MCQ Score: {avgMcqScore:F1}%");
-            report.AppendLine($"Highest MCQ Score: {results.Max(r => r.TotalMcqMarks > 0 ? (r.EarnedMcqMarks * 100.0 / r.TotalMcqMarks) : 0):F1}%");
-            report.AppendLine($"Lowest MCQ Score: {results.Min(r => r.TotalMcqMarks > 0 ? (r.EarnedMcqMarks * 100.0 / r.TotalMcqMarks) : 0):F1}%");
-            report.AppendLine($"Average Time Spent: {TimeSpan.FromTicks((long)results.Average(r => r.TimeSpent.Ticks)):hh\\:mm\\:ss}");
-
-            // Save to file
-            if (string.IsNullOrEmpty(outputPath))
+            catch (Exception ex)
             {
-                outputPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"GradingReport_{results[0].ExamId}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                Console.WriteLine($"Error loading grades: {ex.Message}");
             }
 
-            File.WriteAllText(outputPath, report.ToString());
-            Console.WriteLine($"\n? Report saved to: {outputPath}");
-            Console.WriteLine(report.ToString());
+            return grades;
         }
 
-        /// <summary>
-        /// Generate CSV export for further analysis
-        /// </summary>
-        public void ExportToCSV(List<GradingResult> results, string outputPath = null)
+        public GradeResult GetStudentGrade(string studentId, string examId)
         {
-            if (results == null || results.Count == 0)
-            {
-                Console.WriteLine("No results to export");
-                return;
-            }
-
-            if (string.IsNullOrEmpty(outputPath))
-            {
-                outputPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"GradingExport_{results[0].ExamId}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-            }
-
-            using (var writer = new StreamWriter(outputPath))
-            {
-                // Header
-                writer.WriteLine("Student ID,MCQ Score,MCQ Total,MCQ %,Subjective Total,Questions Answered,Total Questions,Time Spent (mins),Submission Time");
-
-                foreach (var result in results.OrderBy(r => r.StudentId))
-                {
-                    double mcqPercent = result.TotalMcqMarks > 0
-                        ? (result.EarnedMcqMarks * 100.0 / result.TotalMcqMarks)
-                        : 0;
-
-                    writer.WriteLine($"{result.StudentId},{result.EarnedMcqMarks},{result.TotalMcqMarks},{mcqPercent:F1},{result.TotalSubjectiveMarks},{result.QuestionsAnswered},{result.TotalQuestions},{result.TimeSpent.TotalMinutes:F1},{result.SubmissionTime:yyyy-MM-dd HH:mm:ss}");
-                }
-            }
-
-            Console.WriteLine($"? CSV exported to: {outputPath}");
+            var allGrades = GetAllGrades();
+            return allGrades
+                .Where(g => g.StudentId == studentId && g.ExamId == examId)
+                .OrderByDescending(g => g.GradedAt)
+                .FirstOrDefault();
         }
     }
 }
