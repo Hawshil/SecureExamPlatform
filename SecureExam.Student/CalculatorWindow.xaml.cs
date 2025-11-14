@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace SecureExam.Student
 {
@@ -15,6 +16,9 @@ namespace SecureExam.Student
         {
             InitializeComponent();
             UpdateDisplay();
+
+            // Allow dragging the window
+            this.MouseLeftButtonDown += (s, e) => { if (e.LeftButton == MouseButtonState.Pressed) DragMove(); };
         }
 
         private void Number_Click(object sender, RoutedEventArgs e)
@@ -31,7 +35,6 @@ namespace SecureExam.Student
             {
                 if (number == "." && currentInput.Contains("."))
                     return;
-
                 currentInput += number;
             }
 
@@ -57,34 +60,14 @@ namespace SecureExam.Student
         {
             Calculate();
             currentOperation = "";
-            storedValue = "";
             shouldResetDisplay = true;
-        }
-
-        private void Clear_Click(object sender, RoutedEventArgs e)
-        {
-            currentInput = "0";
-            storedValue = "";
-            currentOperation = "";
-            shouldResetDisplay = false;
-            UpdateDisplay();
-        }
-
-        private void Backspace_Click(object sender, RoutedEventArgs e)
-        {
-            if (currentInput.Length > 1)
-            {
-                currentInput = currentInput.Substring(0, currentInput.Length - 1);
-            }
-            else
-            {
-                currentInput = "0";
-            }
-            UpdateDisplay();
         }
 
         private void Calculate()
         {
+            if (string.IsNullOrEmpty(storedValue) || string.IsNullOrEmpty(currentOperation))
+                return;
+
             try
             {
                 double num1 = double.Parse(storedValue);
@@ -118,22 +101,52 @@ namespace SecureExam.Student
                 }
 
                 currentInput = result.ToString();
-                if (currentInput.Contains(".") && currentInput.Length > 10)
-                {
-                    currentInput = Math.Round(result, 6).ToString();
-                }
+                UpdateDisplay();
             }
             catch
             {
                 currentInput = "Error";
+                UpdateDisplay();
             }
+        }
 
+        private void Clear_Click(object sender, RoutedEventArgs e)
+        {
+            currentInput = "0";
+            storedValue = "";
+            currentOperation = "";
+            shouldResetDisplay = false;
             UpdateDisplay();
+        }
+
+        private void Backspace_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentInput.Length > 1)
+            {
+                currentInput = currentInput.Substring(0, currentInput.Length - 1);
+            }
+            else
+            {
+                currentInput = "0";
+            }
+            UpdateDisplay();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Hide();
         }
 
         private void UpdateDisplay()
         {
             DisplayText.Text = currentInput;
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            // Prevent actual closing, just hide
+            e.Cancel = true;
+            this.Hide();
         }
     }
 }

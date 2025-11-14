@@ -46,11 +46,12 @@ namespace SecureExam.Student
         private TimeSpan remainingTime;
         private bool _isProperExit = false;
         private bool _isSubmitting = false;
+        private int currentQuestionIndex = 0;
+        private CalculatorWindow calculatorWindow;
 
         public SecureExamWindow(string studentId, string examId, string labId, ExamContent exam)
         {
             InitializeComponent();
-
             this.studentId = studentId;
             this.examId = examId;
             this.labId = labId;
@@ -72,7 +73,7 @@ namespace SecureExam.Student
             }
 
             // Start protection systems
-            screenshotPrevention.StartProtection();  // NOT EnableProtection()
+            screenshotPrevention.StartProtection();
             processMonitor.StartMonitoring();
 
             // Load saved answers if exist
@@ -85,7 +86,6 @@ namespace SecureExam.Student
             // Setup exam
             examStartTime = DateTime.Now;
             remainingTime = TimeSpan.FromMinutes(exam.DurationMinutes);
-
             ExamTitleText.Text = exam.Title;
             StudentInfoText.Text = $"Student: {studentId} | Exam: {examId} | Lab: {labId}";
 
@@ -97,7 +97,7 @@ namespace SecureExam.Student
             examTimer.Tick += ExamTimer_Tick;
             examTimer.Start();
 
-            // Security monitoring timer (keep window on top)
+            // Security monitoring timer
             securityTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(2)
@@ -105,11 +105,11 @@ namespace SecureExam.Student
             securityTimer.Tick += SecurityTimer_Tick;
             securityTimer.Start();
 
-            // Load questions
-            LoadQuestions();
+            // Load questions navigation
+            LoadQuestionNavigation();
+            DisplayQuestion(0);
 
-            // Focus first input
-            Dispatcher.InvokeAsync(() => FocusFirstInput(), DispatcherPriority.Loaded);
+            UpdateProgress();
         }
 
         private void InitializeSecurity()
@@ -118,7 +118,7 @@ namespace SecureExam.Student
             this.PreviewKeyDown += SecureWindow_PreviewKeyDown;
             this.Closing += SecureWindow_Closing;
 
-            // Force topmost every 500ms
+            // Force topmost and maximized
             var topmostTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(500)
@@ -138,10 +138,11 @@ namespace SecureExam.Student
 
         private void SecureWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Block Alt+F4
+            // Block Alt+F4 - Require password
             if (e.Key == Key.System && e.SystemKey == Key.F4)
             {
                 e.Handled = true;
+                HandleExitAttempt();
                 return;
             }
 
@@ -245,109 +246,154 @@ namespace SecureExam.Student
 
         private void SecurityTimer_Tick(object sender, EventArgs e)
         {
-            // Keep window on top and maximized
             this.Topmost = true;
             this.WindowState = WindowState.Maximized;
             this.Focus();
         }
 
-        private void LoadQuestions()
+        private void LoadQuestionNavigation()
         {
-            QuestionsPanel.Children.Clear();
+            QuestionNavPanel.Children.Clear();
 
             for (int i = 0; i < examContent.Questions.Count; i++)
             {
-                var question = examContent.Questions[i];
-                var questionPanel = CreateQuestionPanel(i, question);
-                QuestionsPanel.Children.Add(questionPanel);
+                int index = i; // Capture for closure
+                var button = new Button
+                {
+                    Content = $"Q{i + 1}",
+                    Height = 40,
+                    Margin = new Thickness(5),
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold,
+                    Background = new SolidColorBrush(Color.FromRgb(68, 68, 68)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Tag = index
+                };
+
+                button.Click += (s, e) =>
+                {
+                    DisplayQuestion((int)((Button)s).Tag);
+                };
+
+                QuestionNavPanel.Children.Add(button);
             }
+
+            UpdateNavigationButtons();
         }
 
-        private Border CreateQuestionPanel(int index, Question question)
+        private void UpdateNavigationButtons()
         {
-            var border = new Border
+            // Update question navigation button colors
+            foreach (var child in QuestionNavPanel.Children)
             {
-                Background = new SolidColorBrush(Color.FromRgb(44, 44, 44)),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(25),
-                Margin = new Thickness(0, 0, 0, 20)
-            };
+                if (child is Button btn)
+                {
+                    int index = (int)btn.Tag;
 
-            var stack = new StackPanel();
+                    if (index == currentQuestionIndex)
+                    {
+                        // Current question - Blue
+                        btn.Background = new SolidColorBrush(Color.FromRgb(33, 150, 243));
+                    }
+                    else if (answers.ContainsKey(index) && !string.IsNullOrWhiteSpace(answers[index]))
+                    {
+                        // Answered - Green
+                        btn.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                    }
+                    else
+                    {
+                        // Unanswered - Gray
+                        btn.Background = new SolidColorBrush(Color.FromRgb(68, 68, 68));
+                    }
+                }
+            }
+
+            // Update Previous/Next buttons
+            PreviousButton.IsEnabled = currentQuestionIndex > 0;
+            NextButton.Content = currentQuestionIndex < examContent.Questions.Count - 1 ? "Next →" : "Last Question";
+            NextButton.IsEnabled = currentQuestionIndex < examContent.Questions.Count - 1;
+        }
+
+        private void DisplayQuestion(int index)
+        {
+            if (index < 0 || index >= examContent.Questions.Count)
+                return;
+
+            currentQuestionIndex = index;
+            CurrentQuestionPanel.Children.Clear();
+
+            var question = examContent.Questions[index];
 
             // Question header
             var headerStack = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 0, 0, 15)
+                Margin = new Thickness(0, 0, 0, 20)
             };
 
             headerStack.Children.Add(new TextBlock
             {
                 Text = $"Question {index + 1}",
-                FontSize = 16,
+                FontSize = 22,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
-                IsHitTestVisible = false,
-                Focusable = false
+                Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243))
             });
 
             headerStack.Children.Add(new TextBlock
             {
                 Text = $" ({question.Points} pts)",
-                FontSize = 14,
+                FontSize = 18,
                 Foreground = Brushes.Gray,
-                Margin = new Thickness(5, 0, 0, 0),
-                IsHitTestVisible = false,
-                Focusable = false
+                Margin = new Thickness(10, 0, 0, 0)
             });
 
             headerStack.Children.Add(new TextBlock
             {
                 Text = $" - {question.Type}",
-                FontSize = 12,
+                FontSize = 16,
                 Foreground = new SolidColorBrush(Color.FromRgb(255, 152, 0)),
-                Margin = new Thickness(10, 0, 0, 0),
-                IsHitTestVisible = false,
-                Focusable = false
+                Margin = new Thickness(15, 0, 0, 0)
             });
 
-            stack.Children.Add(headerStack);
+            CurrentQuestionPanel.Children.Add(headerStack);
 
-            // Question text - COPY PROTECTED (cannot be selected)
+            // Question text
             var questionText = new TextBlock
             {
                 Text = question.Text,
-                FontSize = 15,
+                FontSize = 18,
                 Foreground = Brushes.White,
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 20),
-                IsHitTestVisible = false,  // Cannot be clicked/selected
-                Focusable = false          // Cannot be focused
+                Margin = new Thickness(0, 0, 0, 30),
+                LineHeight = 28
             };
-            stack.Children.Add(questionText);
+            CurrentQuestionPanel.Children.Add(questionText);
 
             // Answer input based on question type
             if (question.Type == "MCQ" && question.Options != null)
             {
-                var optionsStack = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
+                var optionsStack = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
 
                 for (int i = 0; i < question.Options.Count; i++)
                 {
                     var radio = new RadioButton
                     {
                         Content = question.Options[i],
-                        FontSize = 14,
+                        FontSize = 16,
                         Foreground = Brushes.White,
-                        Margin = new Thickness(0, 0, 0, 10),
+                        Margin = new Thickness(0, 0, 0, 15),
                         GroupName = $"Q{index}",
-                        Tag = index
+                        Tag = index,
+                        Padding = new Thickness(10)
                     };
+
                     radio.Checked += (s, e) =>
                     {
                         int qIndex = (int)((RadioButton)s).Tag;
                         answers[qIndex] = ((RadioButton)s).Content.ToString();
                         UpdateProgress();
+                        UpdateNavigationButtons();
                     };
 
                     // Restore saved answer
@@ -359,55 +405,74 @@ namespace SecureExam.Student
                     optionsStack.Children.Add(radio);
                 }
 
-                stack.Children.Add(optionsStack);
+                CurrentQuestionPanel.Children.Add(optionsStack);
             }
             else if (question.Type == "SHORT")
             {
                 var textBox = new TextBox
                 {
-                    Height = 80,
-                    FontSize = 14,
-                    Padding = new Thickness(10),
+                    Height = 100,
+                    FontSize = 16,
+                    Padding = new Thickness(15),
                     TextWrapping = TextWrapping.Wrap,
                     AcceptsReturn = true,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                     Tag = index,
                     Text = answers.ContainsKey(index) ? answers[index] : ""
                 };
+
                 textBox.TextChanged += (s, e) =>
                 {
                     int qIndex = (int)((TextBox)s).Tag;
                     answers[qIndex] = ((TextBox)s).Text;
                     UpdateProgress();
+                    UpdateNavigationButtons();
                 };
 
-                stack.Children.Add(textBox);
+                CurrentQuestionPanel.Children.Add(textBox);
             }
             else if (question.Type == "LONG")
             {
                 var textBox = new TextBox
                 {
-                    Height = 150,
-                    FontSize = 14,
-                    Padding = new Thickness(10),
+                    Height = 250,
+                    FontSize = 16,
+                    Padding = new Thickness(15),
                     TextWrapping = TextWrapping.Wrap,
                     AcceptsReturn = true,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                     Tag = index,
                     Text = answers.ContainsKey(index) ? answers[index] : ""
                 };
+
                 textBox.TextChanged += (s, e) =>
                 {
                     int qIndex = (int)((TextBox)s).Tag;
                     answers[qIndex] = ((TextBox)s).Text;
                     UpdateProgress();
+                    UpdateNavigationButtons();
                 };
 
-                stack.Children.Add(textBox);
+                CurrentQuestionPanel.Children.Add(textBox);
             }
 
-            border.Child = stack;
-            return border;
+            UpdateNavigationButtons();
+        }
+
+        private void PreviousButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentQuestionIndex > 0)
+            {
+                DisplayQuestion(currentQuestionIndex - 1);
+            }
+        }
+
+        private void NextButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentQuestionIndex < examContent.Questions.Count - 1)
+            {
+                DisplayQuestion(currentQuestionIndex + 1);
+            }
         }
 
         private void ExamTimer_Tick(object sender, EventArgs e)
@@ -440,19 +505,60 @@ namespace SecureExam.Student
         private void UpdateProgress()
         {
             int answered = answers.Count(a => !string.IsNullOrWhiteSpace(a.Value));
-            ProgressText.Text = $"Progress: {answered}/{examContent.Questions.Count} answered";
+            ProgressText.Text = $"{answered}/{examContent.Questions.Count} answered";
         }
 
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             SaveAnswers(false);
-            StatusText.Text = "✓ Answers saved and refreshed";
-
+            StatusText.Text = "✓ Answers saved";
             Dispatcher.InvokeAsync(() =>
             {
                 StatusText.Text = "📝 Continue answering";
-            }, DispatcherPriority.Background, System.Threading.CancellationToken.None);
+            }, DispatcherPriority.Background);
         }
+
+        private void CalculatorButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (calculatorWindow == null)
+                {
+                    calculatorWindow = new CalculatorWindow
+                    {
+                        Owner = this,
+                        WindowStartupLocation = WindowStartupLocation.Manual
+                    };
+
+                    // Position calculator on the right side of the screen
+                    calculatorWindow.Left = this.Left + this.ActualWidth - calculatorWindow.Width - 50;
+                    calculatorWindow.Top = this.Top + 100;
+                }
+
+                if (calculatorWindow.Visibility == Visibility.Visible)
+                {
+                    calculatorWindow.Hide();
+                    CalculatorButton.Background = new SolidColorBrush(Color.FromRgb(33, 150, 243));
+                }
+                else
+                {
+                    calculatorWindow.Show();
+                    calculatorWindow.Topmost = true;
+                    CalculatorButton.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Calculator error: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+
+        ////private void CloseCalculatorButton_Click(object sender, RoutedEventArgs e)
+        //{
+        //    CalculatorPanel.Visibility = Visibility.Collapsed;
+        //}
 
         private void SubmitButton_Click(object sender, RoutedEventArgs e)
         {
@@ -570,44 +676,9 @@ namespace SecureExam.Student
             catch { }
         }
 
-        private void CalculatorButton_Click(object sender, RoutedEventArgs e)
-        {
-            var calc = new CalculatorWindow();
-            calc.ShowDialog();
-        }
-
         private void ExitButton_Click(object sender, RoutedEventArgs e)
         {
             HandleExitAttempt();
-        }
-
-        private void FocusFirstInput()
-        {
-            foreach (var child in QuestionsPanel.Children)
-            {
-                if (child is Border border && border.Child is StackPanel stack)
-                {
-                    foreach (var control in stack.Children)
-                    {
-                        if (control is TextBox tb)
-                        {
-                            tb.Focus();
-                            return;
-                        }
-                        else if (control is StackPanel optStack)
-                        {
-                            foreach (var opt in optStack.Children)
-                            {
-                                if (opt is RadioButton rb)
-                                {
-                                    rb.Focus();
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         private void Cleanup()
@@ -617,9 +688,8 @@ namespace SecureExam.Student
                 examTimer?.Stop();
                 securityTimer?.Stop();
                 processMonitor?.StopMonitoring();
-                screenshotPrevention?.StopProtection();  // NOT DisableProtection()
+                screenshotPrevention?.StopProtection();
 
-                // Unprotect window before closing
                 IntPtr hwnd = new WindowInteropHelper(this).Handle;
                 if (hwnd != IntPtr.Zero)
                 {

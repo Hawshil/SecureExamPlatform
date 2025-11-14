@@ -68,6 +68,201 @@ namespace SecureExam.Admin
             return false;
         }
 
+        private void RefreshSubmissionsButton_Click(object sender, RoutedEventArgs e)
+        {
+            LoadSubmissionsForGrading();
+        }
+
+        private void LoadSubmissionsForGrading()
+        {
+            try
+            {
+                var submissions = gradingTool.GetSubmissionFiles();
+                SubmissionsComboBox.Items.Clear();
+
+                foreach (var submission in submissions)
+                {
+                    SubmissionsComboBox.Items.Add(Path.GetFileName(submission));
+                }
+
+                if (submissions.Count > 0)
+                {
+                    SubmissionsComboBox.SelectedIndex = 0;
+                }
+
+                StatusText.Text = $"✓ Loaded {submissions.Count} submission(s) for grading";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading submissions: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void GradeSubmissionButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (SubmissionsComboBox.SelectedItem == null)
+                {
+                    MessageBox.Show("Please select a submission to grade.", "No Selection",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                string submissionsDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "SecureExam",
+                    "Submissions"
+                );
+
+                string selectedFile = Path.Combine(submissionsDir, SubmissionsComboBox.SelectedItem.ToString());
+
+                var result = gradingTool.GradeSubmission(selectedFile);
+
+                // Display results
+                string report = gradingTool.GenerateGradeReport(result);
+                GradingResultsText.Text = report;
+                GradingResultsPanel.Visibility = Visibility.Visible;
+
+                StatusText.Text = $"✓ Graded {result.StudentId} - Score: {result.Percentage:F2}% ({result.Grade})";
+
+                MessageBox.Show($"Grading Complete!\n\nStudent: {result.StudentId}\nScore: {result.EarnedPoints}/{result.TotalPoints} ({result.Percentage:F2}%)\nGrade: {result.Grade}",
+                    "Grading Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error grading submission: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ViewAllGradesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var grades = gradingTool.GetAllGrades();
+
+                if (grades.Count == 0)
+                {
+                    MessageBox.Show("No grades found yet.", "No Data",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var gradesWindow = new AllGradesWindow(grades);
+                gradesWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading grades: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Add this new Window class for displaying all grades
+        public class AllGradesWindow : Window
+        {
+            public AllGradesWindow(List<GradingTool.GradeResult> grades)
+            {
+                Title = "All Grades";
+                Width = 1000;
+                Height = 600;
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(26, 26, 26));
+
+                var mainGrid = new Grid { Margin = new Thickness(10) };
+                mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                var titleBlock = new TextBlock
+                {
+                    Text = "📊 All Grades",
+                    FontSize = 24,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    Margin = new Thickness(0, 0, 0, 20)
+                };
+                Grid.SetRow(titleBlock, 0);
+                mainGrid.Children.Add(titleBlock);
+
+                var grid = new DataGrid
+                {
+                    ItemsSource = grades,
+                    AutoGenerateColumns = false,
+                    IsReadOnly = true,
+                    Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(44, 44, 44)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    RowBackground = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(44, 44, 44)),
+                    AlternatingRowBackground = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(51, 51, 51))
+                };
+
+                grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "Student ID",
+                    Binding = new System.Windows.Data.Binding("StudentId"),
+                    Width = new DataGridLength(150)
+                });
+                grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "Exam ID",
+                    Binding = new System.Windows.Data.Binding("ExamId"),
+                    Width = new DataGridLength(150)
+                });
+                grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "Score",
+                    Binding = new System.Windows.Data.Binding("EarnedPoints"),
+                    Width = new DataGridLength(80)
+                });
+                grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "Total",
+                    Binding = new System.Windows.Data.Binding("TotalPoints"),
+                    Width = new DataGridLength(80)
+                });
+                grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "Percentage",
+                    Binding = new System.Windows.Data.Binding("Percentage"),
+                    Width = new DataGridLength(100)
+                });
+                grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "Grade",
+                    Binding = new System.Windows.Data.Binding("Grade"),
+                    Width = new DataGridLength(80)
+                });
+                grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "Graded At",
+                    Binding = new System.Windows.Data.Binding("GradedAt"),
+                    Width = new DataGridLength(180)
+                });
+
+                Grid.SetRow(grid, 1);
+                mainGrid.Children.Add(grid);
+
+                var closeBtn = new Button
+                {
+                    Content = "Close",
+                    Width = 100,
+                    Height = 35,
+                    Margin = new Thickness(0, 10, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                closeBtn.Click += (s, e) => Close();
+                Grid.SetRow(closeBtn, 2);
+                mainGrid.Children.Add(closeBtn);
+
+                Content = mainGrid;
+            }
+        }
         private void LoadExams()
         {
             try

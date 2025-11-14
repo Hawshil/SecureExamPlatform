@@ -1,7 +1,24 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexam.student\\secureexamwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|solutionrelative:secureexam.student\\secureexamwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexam.student\\calculatorwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|solutionrelative:secureexam.student\\calculatorwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexam.student\\secureexamwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|solutionrelative:secureexam.student\\secureexamwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|c:\\users\\12345\\downloads\\vs\\secureexamplatform\\secureexam.student\\calculatorwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4BEE9C2A-91FD-4D98-A3CD-379C81D0E416}|SecureExam.Student\\SecureExam.Student.csproj|solutionrelative:secureexam.student\\calculatorwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,7 +26,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 208,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Bookmark",
@@ -22,6 +39,56 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "SecureExamWindow.xaml",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\SecureExamWindow.xaml",
+              "RelativeDocumentMoniker": "SecureExam.Student\\SecureExamWindow.xaml",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\SecureExamWindow.xaml",
+              "RelativeToolTip": "SecureExam.Student\\SecureExamWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-11-14T04:01:48.354Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "SecureExamWindow.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\SecureExamWindow.xaml.cs",
+              "RelativeDocumentMoniker": "SecureExam.Student\\SecureExamWindow.xaml.cs",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\SecureExamWindow.xaml.cs",
+              "RelativeToolTip": "SecureExam.Student\\SecureExamWindow.xaml.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAA+wDAAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-14T03:57:58.413Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "CalculatorWindow.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\CalculatorWindow.xaml.cs",
+              "RelativeDocumentMoniker": "SecureExam.Student\\CalculatorWindow.xaml.cs",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\CalculatorWindow.xaml.cs",
+              "RelativeToolTip": "SecureExam.Student\\CalculatorWindow.xaml.cs",
+              "ViewState": "AgIAAHMAAAAAAAAAAAAiwJgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-14T03:57:02.482Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "CalculatorWindow.xaml",
+              "DocumentMoniker": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\CalculatorWindow.xaml",
+              "RelativeDocumentMoniker": "SecureExam.Student\\CalculatorWindow.xaml",
+              "ToolTip": "C:\\Users\\12345\\Downloads\\VS\\SecureExamPlatform\\SecureExam.Student\\CalculatorWindow.xaml",
+              "RelativeToolTip": "SecureExam.Student\\CalculatorWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-11-14T03:56:48.407Z",
+              "EditorCaption": ""
             }
           ]
         },
