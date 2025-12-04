@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SecureExamPlatform.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e92baa7169296a41b27c67ce0eba352bd42ce387")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3da53fd42d55b81f067b05da4947a69b3f185c7d")]
 [assembly: System.Reflection.AssemblyProductAttribute("SecureExamPlatform.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SecureExamPlatform.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -22,11 +22,32 @@ namespace SecureExam.Student
 {
     public partial class SecureExamWindow : Window
     {
+        // Windows API imports for keyboard hook
         [DllImport("user32.dll")]
         private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern int GetWindowThreadProcessId(IntPtr hWnd, out int processId);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+        [DllImport("user32.dll")]
+        private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        private const int WH_KEYBOARD_LL = 13;
+        private const int WM_KEYDOWN = 0x0100;
+        private const int WM_SYSKEYDOWN = 0x0104;
+        private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
         private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         private const uint SWP_NOMOVE = 0x0002;
@@ -42,16 +63,23 @@ namespace SecureExam.Student
         private readonly DispatcherTimer securityTimer;
         private readonly EnhancedProcessMonitor processMonitor;
         private readonly ScreenshotPrevention screenshotPrevention;
+
         private DateTime examStartTime;
         private TimeSpan remainingTime;
         private bool _isProperExit = false;
         private bool _isSubmitting = false;
         private int currentQuestionIndex = 0;
         private CalculatorWindow calculatorWindow;
+        private bool _isExitDialogOpen = false;
+
+        // Low-level keyboard hook
+        private LowLevelKeyboardProc _keyboardProc;
+        private IntPtr _hookID = IntPtr.Zero;
 
         public SecureExamWindow(string studentId, string examId, string labId, ExamContent exam)
         {
             InitializeComponent();
+
             this.studentId = studentId;
             this.examId = examId;
             this.labId = labId;
@@ -86,6 +114,7 @@ namespace SecureExam.Student
             // Setup exam
             examStartTime = DateTime.Now;
             remainingTime = TimeSpan.FromMinutes(exam.DurationMinutes);
+
             ExamTitleText.Text = exam.Title;
             StudentInfoText.Text = $"Student: {studentId} | Exam: {examId} | Lab: {labId}";
 
@@ -108,37 +137,97 @@ namespace SecureExam.Student
             // Load questions navigation
             LoadQuestionNavigation();
             DisplayQuestion(0);
-
             UpdateProgress();
+
+            // Install low-level keyboard hook
+            _keyboardProc = HookCallback;
+            _hookID = SetHook(_keyboardProc);
+
+            // Disable right-click context menu
+            this.ContextMenu = null;
+            this.PreviewMouseRightButtonDown += (s, e) => e.Handled = true;
+        }
+
+        private IntPtr SetHook(LowLevelKeyboardProc proc)
+        {
+            using (Process curProcess = Process.GetCurrentProcess())
+            using (ProcessModule curModule = curProcess.MainModule)
+            {
+                return SetWindowsHookEx(WH_KEYBOARD_LL, proc, GetModuleHandle(curModule.ModuleName), 0);
+            }
+        }
+
+        private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+        {
+            if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
+            {
+                int vkCode = Marshal.ReadInt32(lParam);
+
+                // Block Windows keys (91 = LWin, 92 = RWin)
+                if (vkCode == 91 || vkCode == 92)
+                {
+                    return (IntPtr)1;
+                }
+
+                // Block Ctrl+Esc (27 = Esc)
+                bool isCtrlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                if (isCtrlPressed && vkCode == 27)
+                {
+                    return (IntPtr)1;
+                }
+
+                // Block Ctrl+Tab (9 = Tab)
+                if (isCtrlPressed && vkCode == 9)
+                {
+                    return (IntPtr)1;
+                }
+
+                // Block Alt+Tab
+                bool isAltPressed = (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt;
+                if (isAltPressed && vkCode == 9)
+                {
+                    return (IntPtr)1;
+                }
+
+                // Block Ctrl+Shift+Esc (Task Manager)
+                bool isShiftPressed = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+                if (isCtrlPressed && isShiftPressed && vkCode == 27)
+                {
+                    return (IntPtr)1;
+                }
+            }
+
+            return CallNextHookEx(_hookID, nCode, wParam, lParam);
         }
 
         private void InitializeSecurity()
         {
-            // Block all dangerous keyboard shortcuts
             this.PreviewKeyDown += SecureWindow_PreviewKeyDown;
             this.Closing += SecureWindow_Closing;
 
-            // Force topmost and maximized
             var topmostTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(500)
             };
             topmostTimer.Tick += (s, e) =>
             {
-                this.Topmost = true;
-                this.WindowState = WindowState.Maximized;
-                IntPtr hwnd = new WindowInteropHelper(this).Handle;
-                SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+                if (!_isExitDialogOpen)
+                {
+                    this.Topmost = true;
+                    this.WindowState = WindowState.Maximized;
+                    IntPtr hwnd = new WindowInteropHelper(this).Handle;
+                    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+                }
             };
             topmostTimer.Start();
 
-            // Disable clipboard copying
             DataObject.AddCopyingHandler(this, (s, e) => e.CancelCommand());
+            this.PreviewMouseRightButtonDown += (s, e) => e.Handled = true;
         }
 
         private void SecureWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Block Alt+F4 - Require password
+            // Block Alt+F4
             if (e.Key == Key.System && e.SystemKey == Key.F4)
             {
                 e.Handled = true;
@@ -153,11 +242,18 @@ namespace SecureExam.Student
                 return;
             }
 
-            // Block dangerous Ctrl combinations
+            // Block Ctrl combinations
             if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
-                if (e.Key == Key.Escape || e.Key == Key.Tab || e.Key == Key.W ||
-                    e.Key == Key.N || e.Key == Key.T)
+                if (e.Key == Key.C || e.Key == Key.V || e.Key == Key.X || e.Key == Key.A)
+                {
+                    if (!(Keyboard.FocusedElement is TextBox || Keyboard.FocusedElement is PasswordBox))
+                    {
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else
                 {
                     e.Handled = true;
                     return;
@@ -179,7 +275,7 @@ namespace SecureExam.Student
                 return;
             }
 
-            // ALLOW Alt+E for emergency exit
+            // ALLOW Alt+E for exit
             if (e.Key == Key.E && (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
             {
                 e.Handled = true;
@@ -225,8 +321,21 @@ namespace SecureExam.Student
 
             if (result == MessageBoxResult.Yes)
             {
-                var dialog = new ExitPasswordDialog();
-                if (dialog.ShowDialog() == true)
+                _isExitDialogOpen = true;
+                this.Topmost = false;
+
+                var dialog = new ExitPasswordDialog
+                {
+                    Owner = this,
+                    Topmost = true
+                };
+
+                bool? dialogResult = dialog.ShowDialog();
+
+                _isExitDialogOpen = false;
+                this.Topmost = true;
+
+                if (dialogResult == true)
                 {
                     if (dialog.EnteredPassword == "EXIT2025")
                     {
@@ -246,9 +355,12 @@ namespace SecureExam.Student
 
         private void SecurityTimer_Tick(object sender, EventArgs e)
         {
-            this.Topmost = true;
-            this.WindowState = WindowState.Maximized;
-            this.Focus();
+            if (!_isExitDialogOpen)
+            {
+                this.Topmost = true;
+                this.WindowState = WindowState.Maximized;
+                this.Focus();
+            }
         }
 
         private void LoadQuestionNavigation()
@@ -257,7 +369,7 @@ namespace SecureExam.Student
 
             for (int i = 0; i < examContent.Questions.Count; i++)
             {
-                int index = i; // Capture for closure
+                int index = i;
                 var button = new Button
                 {
                     Content = $"Q{i + 1}",
@@ -284,7 +396,6 @@ namespace SecureExam.Student
 
         private void UpdateNavigationButtons()
         {
-            // Update question navigation button colors
             foreach (var child in QuestionNavPanel.Children)
             {
                 if (child is Button btn)
@@ -293,23 +404,19 @@ namespace SecureExam.Student
 
                     if (index == currentQuestionIndex)
                     {
-                        // Current question - Blue
                         btn.Background = new SolidColorBrush(Color.FromRgb(33, 150, 243));
                     }
                     else if (answers.ContainsKey(index) && !string.IsNullOrWhiteSpace(answers[index]))
                     {
-                        // Answered - Green
                         btn.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
                     }
                     else
                     {
-                        // Unanswered - Gray
                         btn.Background = new SolidColorBrush(Color.FromRgb(68, 68, 68));
                     }
                 }
             }
 
-            // Update Previous/Next buttons
             PreviousButton.IsEnabled = currentQuestionIndex > 0;
             NextButton.Content = currentQuestionIndex < examContent.Questions.Count - 1 ? "Next →" : "Last Question";
             NextButton.IsEnabled = currentQuestionIndex < examContent.Questions.Count - 1;
@@ -325,7 +432,6 @@ namespace SecureExam.Student
 
             var question = examContent.Questions[index];
 
-            // Question header
             var headerStack = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -358,7 +464,6 @@ namespace SecureExam.Student
 
             CurrentQuestionPanel.Children.Add(headerStack);
 
-            // Question text
             var questionText = new TextBlock
             {
                 Text = question.Text,
@@ -370,7 +475,6 @@ namespace SecureExam.Student
             };
             CurrentQuestionPanel.Children.Add(questionText);
 
-            // Answer input based on question type
             if (question.Type == "MCQ" && question.Options != null)
             {
                 var optionsStack = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
@@ -396,7 +500,6 @@ namespace SecureExam.Student
                         UpdateNavigationButtons();
                     };
 
-                    // Restore saved answer
                     if (answers.ContainsKey(index) && answers[index] == question.Options[i])
                     {
                         radio.IsChecked = true;
@@ -429,6 +532,8 @@ namespace SecureExam.Student
                     UpdateNavigationButtons();
                 };
 
+                textBox.PreviewMouseRightButtonDown += (s, e) => e.Handled = true;
+
                 CurrentQuestionPanel.Children.Add(textBox);
             }
             else if (question.Type == "LONG")
@@ -452,6 +557,8 @@ namespace SecureExam.Student
                     UpdateProgress();
                     UpdateNavigationButtons();
                 };
+
+                textBox.PreviewMouseRightButtonDown += (s, e) => e.Handled = true;
 
                 CurrentQuestionPanel.Children.Add(textBox);
             }
@@ -490,7 +597,6 @@ namespace SecureExam.Student
             {
                 TimerText.Text = $"{(int)remainingTime.TotalHours:D2}:{remainingTime.Minutes:D2}:{remainingTime.Seconds:D2}";
 
-                // Warning colors
                 if (remainingTime.TotalMinutes <= 5)
                 {
                     TimerText.Foreground = Brushes.Red;
@@ -512,6 +618,7 @@ namespace SecureExam.Student
         {
             SaveAnswers(false);
             StatusText.Text = "✓ Answers saved";
+
             Dispatcher.InvokeAsync(() =>
             {
                 StatusText.Text = "📝 Continue answering";
@@ -530,7 +637,6 @@ namespace SecureExam.Student
                         WindowStartupLocation = WindowStartupLocation.Manual
                     };
 
-                    // Position calculator on the right side of the screen
                     calculatorWindow.Left = this.Left + this.ActualWidth - calculatorWindow.Width - 50;
                     calculatorWindow.Top = this.Top + 100;
                 }
@@ -553,12 +659,6 @@ namespace SecureExam.Student
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-
-        ////private void CloseCalculatorButton_Click(object sender, RoutedEventArgs e)
-        //{
-        //    CalculatorPanel.Visibility = Visibility.Collapsed;
-        //}
 
         private void SubmitButton_Click(object sender, RoutedEventArgs e)
         {
@@ -591,7 +691,6 @@ namespace SecureExam.Student
 
                 if (isSubmission)
                 {
-                    // Save final submission
                     var submission = new ExamSubmission
                     {
                         StudentId = studentId,
@@ -616,6 +715,7 @@ namespace SecureExam.Student
                     {
                         WriteIndented = true
                     });
+
                     File.WriteAllText(filepath, json);
 
                     MessageBox.Show(
@@ -630,7 +730,6 @@ namespace SecureExam.Student
                 }
                 else
                 {
-                    // Save in-progress answers
                     sessionManager.SaveAnswers(answers);
                 }
             }
@@ -685,6 +784,12 @@ namespace SecureExam.Student
         {
             try
             {
+                if (_hookID != IntPtr.Zero)
+                {
+                    UnhookWindowsHookEx(_hookID);
+                    _hookID = IntPtr.Zero;
+                }
+
                 examTimer?.Stop();
                 securityTimer?.Stop();
                 processMonitor?.StopMonitoring();
