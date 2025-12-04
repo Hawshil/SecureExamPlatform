@@ -63,6 +63,8 @@ nunit-*.xml
 
 # Visual Studio cache/options directory
 **/.vs/
+publish/
+
 
 # Visual Studio binary caches
 *.bin
