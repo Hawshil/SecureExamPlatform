@@ -1,0 +1,41 @@
+{
+  "Title": "Computer Science Fundamentals - Midterm",
+  "DurationMinutes": 60,
+  "Questions": [
+    {
+      "Text": "What does CPU stand for?",
+      "Type": "MCQ",
+      "Options": ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Control Processing Unit"],
+      "CorrectAnswer": "Central Processing Unit",
+      "Points": 2
+    },
+    {
+      "Text": "Which is NOT a programming language?",
+      "Type": "MCQ",
+      "Options": ["Python", "HTML", "JavaScript", "C++"],
+      "CorrectAnswer": "HTML",
+      "Points": 2
+    },
+    {
+      "Text": "What is the time complexity of binary search?",
+      "Type": "MCQ",
+      "Options": ["O(n)", "O(log n)", "O(n^2)", "O(1)"],
+      "CorrectAnswer": "O(log n)",
+      "Points": 3
+    },
+    {
+      "Text": "Explain the difference between RAM and ROM.",
+      "Type": "SHORT",
+      "Options": null,
+      "CorrectAnswer": "RAM is volatile memory for temporary storage, ROM is non-volatile for permanent storage.",
+      "Points": 5
+    },
+    {
+      "Text": "Describe Object-Oriented Programming and its four main principles.",
+      "Type": "LONG",
+      "Options": null,
+      "CorrectAnswer": "OOP uses objects containing data and methods. Principles: Encapsulation, Abstraction, Inheritance, Polymorphism.",
+      "Points": 10
+    }
+  ]
+}

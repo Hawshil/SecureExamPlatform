@@ -1,0 +1,88 @@
+{
+    "Title": "Computer Science Fundamentals - Midterm",
+    "DurationMinutes": 60,
+    "Questions": [
+      {
+        "Text": "What does CPU stand for?",
+        "Type": "MCQ",
+        "Options": [
+          "Central Processing Unit",
+          "Computer Personal Unit",
+          "Central Program Utility",
+          "Control Processing Unit"
+        ],
+        "CorrectAnswer": "Central Processing Unit",
+        "Points": 2
+      },
+      {
+        "Text": "Which of the following is NOT a programming language?",
+        "Type": "MCQ",
+        "Options": [
+          "Python",
+          "HTML",
+          "JavaScript",
+          "C++"
+        ],
+        "CorrectAnswer": "HTML",
+        "Points": 2
+      },
+      {
+        "Text": "What is the time complexity of binary search?",
+        "Type": "MCQ",
+        "Options": [
+          "O(n)",
+          "O(log n)",
+          "O(n^2)",
+          "O(1)"
+        ],
+        "CorrectAnswer": "O(log n)",
+        "Points": 3
+      },
+      {
+        "Text": "Explain the difference between RAM and ROM in 2-3 sentences.",
+        "Type": "SHORT",
+        "Options": null,
+        "CorrectAnswer": "RAM is volatile memory used for temporary storage while the computer is running, while ROM is non-volatile memory that retains data even when powered off. RAM is faster and used for active processes, whereas ROM stores firmware and boot instructions.",
+        "Points": 5
+      },
+      {
+        "Text": "Write a detailed explanation of Object-Oriented Programming (OOP) and its four main principles.",
+        "Type": "LONG",
+        "Options": null,
+        "CorrectAnswer": "Object-Oriented Programming is a programming paradigm based on the concept of objects containing data and code. The four main principles are: 1) Encapsulation - bundling data and methods together, 2) Abstraction - hiding complex implementation details, 3) Inheritance - creating new classes from existing ones, 4) Polymorphism - objects taking multiple forms.",
+        "Points": 10
+      },
+      {
+        "Text": "What is the capital of France?",
+        "Type": "MCQ",
+        "Options": [
+          "London",
+          "Berlin",
+          "Paris",
+          "Madrid"
+        ],
+        "CorrectAnswer": "Paris",
+        "Points": 1
+      },
+      {
+        "Text": "Define recursion and provide one example.",
+        "Type": "SHORT",
+        "Options": null,
+        "CorrectAnswer": "Recursion is when a function calls itself to solve a problem by breaking it into smaller subproblems. Example: factorial(n) = n * factorial(n-1).",
+        "Points": 4
+      },
+      {
+        "Text": "Which data structure uses LIFO principle?",
+        "Type": "MCQ",
+        "Options": [
+          "Queue",
+          "Stack",
+          "Array",
+          "Tree"
+        ],
+        "CorrectAnswer": "Stack",
+        "Points": 2
+      }
+    ]
+  }
+  
