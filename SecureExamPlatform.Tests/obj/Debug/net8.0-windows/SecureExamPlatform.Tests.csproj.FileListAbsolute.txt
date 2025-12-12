@@ -1,7 +1,0 @@
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\bin\Debug\net8.0-windows\CoverletSourceRootsMapping_SecureExamPlatform.Tests
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net8.0-windows\SecureExamPlatform.Tests.csproj.AssemblyReference.cache
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net8.0-windows\SecureExamPlatform.Tests.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net8.0-windows\SecureExamPlatform.Tests.AssemblyInfoInputs.cache
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net8.0-windows\SecureExamPlatform.Tests.AssemblyInfo.cs
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net8.0-windows\SecureExamPlatform.Tests.csproj.CoreCompileInputs.cache
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net8.0-windows\SecureExamPlatform.Tests.sourcelink.json

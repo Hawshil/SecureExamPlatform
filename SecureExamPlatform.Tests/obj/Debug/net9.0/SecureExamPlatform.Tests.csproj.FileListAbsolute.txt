@@ -1,6 +1,0 @@
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net9.0\SecureExamPlatform.Tests.csproj.AssemblyReference.cache
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net9.0\SecureExamPlatform.Tests.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net9.0\SecureExamPlatform.Tests.AssemblyInfoInputs.cache
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net9.0\SecureExamPlatform.Tests.AssemblyInfo.cs
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net9.0\SecureExamPlatform.Tests.csproj.CoreCompileInputs.cache
-C:\Users\12345\Downloads\VS\SecureExamPlatform\SecureExamPlatform.Tests\obj\Debug\net9.0\SecureExamPlatform.Tests.sourcelink.json
